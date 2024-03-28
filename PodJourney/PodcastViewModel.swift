@@ -120,8 +120,9 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         } else if let episode = currentlyPlaying {
             // Direct play request, considered as explicit user action.
             print("togglePlayback: Attempting to start/resume playback for episode: \(episode.title).")
-            // Ensure this method starts or resumes playback directly without relying on autoPlay logic.
-            mediaPlayer?.playNewEpisode(url: URL(string: episode.link), autoPlay: true)
+            
+            // Assuming mediaPlayer has been updated to handle state transitions and start playback
+            mediaPlayer?.play(url: URL(string: episode.link))
         } else {
             print("togglePlayback: No episode selected or currently playing. Playback toggle ignored.")
         }
@@ -449,7 +450,7 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
             mediaPlayer?.prepareForNewEpisode(episodeURL, autoPlay: autoPlay)
             
             if autoPlay {
-                    mediaPlayer?.play() // This should only be called if autoPlay is true.
+                    mediaPlayer?.play(url: URL(string: episode.link)) // This should only be called if autoPlay is true.
                 } else {
                     print("Episode prepared, waiting for user action to play.")
                     // Do not initiate playback here.
@@ -460,7 +461,7 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
                 print("Episode re-selected with autoPlay enabled. Checking current playback state.")
                 if mediaPlayer?.currentState is PausedState {
                     print("Resuming playback for the currently paused episode.")
-                    mediaPlayer?.play()
+                    mediaPlayer?.play(url: URL(string: episode.link))
                 } else {
                     print("Current state does not require action. Playback remains paused or stopped.")
                 }
@@ -578,25 +579,45 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     }
     
     // MARK: func selectEpisode
-        @MainActor
-        func selectEpisode(_ episode: Episode) async {
-            let isNewEpisode = self.currentlyPlaying?.id != episode.id
-            print("Episode selection initiated for: \(episode.title), isNewEpisode: \(isNewEpisode)")
+    @MainActor
+    func selectEpisode(_ episode: Episode) async {
+        let isNewEpisode = self.currentlyPlaying?.id != episode.id
+        print("Episode selection initiated for: \(episode.title), isNewEpisode: \(isNewEpisode)")
 
-            if isNewEpisode {
-                print("New episode selected: \(episode.title). Preparing for playback without auto-play.")
-                // Explicitly set autoPlay to false to avoid playing the episode
-                await preparePlayerForEpisode(episode, autoPlay: false)
-                self.currentlyPlaying = episode // Update the currentlyPlaying episode reference
-                print("New episode prepared without auto-play.")
+        if isNewEpisode {
+            print("New episode selected: \(episode.title). Preparing for playback.")
+            // Determine if auto-play should be enabled based on application logic or user settings
+            let shouldAutoPlay = self.mediaPlayer?.shouldAutoPlay ?? false
+            
+            // Prepare the player for the episode without automatically starting playback
+            await preparePlayerForEpisode(episode, autoPlay: false)
+            self.currentlyPlaying = episode // Update the currentlyPlaying episode reference
+            
+            if shouldAutoPlay {
+                // If auto-play is enabled, explicitly start playback
+                print("Auto-play is enabled. Episode will start playing automatically.")
+                self.mediaPlayer?.play()
             } else {
-                print("Episode re-selected, no action taken for auto-play.")
-                // Do nothing if the episode is re-selected, waiting for user action to play
+                print("Auto-play is disabled. Episode prepared without auto-play.")
+                // The episode is ready and will wait for user action to play
             }
-
-            // Ensure the UI is updated to reflect the new episode selection without assuming playback
-            await updateUIForEpisodeSelection(episode: episode)
+        } else {
+            print("Episode re-selected, checking for auto-play.")
+            // Here, you might decide to play the episode if it's re-selected based on your app's behavior
+            // or simply do nothing, assuming the episode is already loaded and ready to play or playing
+            if let shouldAutoPlay = self.mediaPlayer?.shouldAutoPlay, shouldAutoPlay {
+                // If mediaPlayer is not nil and shouldAutoPlay is true, start playback
+                print("Re-selected episode will start playing automatically due to auto-play setting.")
+                self.mediaPlayer?.play()
+            } else {
+                // Do nothing or show controls allowing the user to play the episode
+                print("Re-selected episode prepared without auto-play. Waiting for user action.")
+            }
         }
+
+        // Ensure the UI is updated to reflect the new episode selection
+        await updateUIForEpisodeSelection(episode: episode)
+    }
 }
 
 extension PodcastViewModel {

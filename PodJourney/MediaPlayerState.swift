@@ -18,35 +18,45 @@ protocol MediaPlayerState {
 class PlayingState: MediaPlayerState {
     weak var mediaPlayer: MediaPlayer?
     
+    // Modified init method: It no longer starts playback immediately.
     required init(mediaPlayer: MediaPlayer) {
         self.mediaPlayer = mediaPlayer
-        // Removed autoPlay check here since PlayingState now always means intent to play.
-        startPlayback()
+        // Auto-play check removed. Playback will not start automatically.
     }
     
-    // Added method to start playback immediately when transitioning to this state.
-    private func startPlayback() {
+    // Public method to start playback.
+    // This method must be explicitly called to start playback.
+    func startPlaybackIfNeeded() {
         guard let mediaPlayer = self.mediaPlayer else {
             print("PlayingState: MediaPlayer reference is nil.")
             return
         }
-        
-        // Ensuring playback starts only if explicitly requested by user action.
-        mediaPlayer.player.play()
-        print("PlayingState: Playback started.")
+
+        // Check if the media player is already playing
+        if !mediaPlayer.isPlaying {
+            // If not, start playback
+            mediaPlayer.player.play()
+            print("Playback started.")
+        } else {
+            // If it is already playing, log that no action is needed
+            print("MediaPlayer is already playing.")
+        }
     }
     
     func play() {
-        // It's already playing, but this print statement confirms that the method was called.
-        print("MediaPlayer is already playing.")
+        guard let mediaPlayer = self.mediaPlayer, mediaPlayer.shouldAutoPlay else {
+            print("Auto-play is disabled. Waiting for user action to play.")
+            return
+        }
+        // If shouldAutoPlay is true, proceed with playback
+        startPlaybackIfNeeded()
     }
     
-    // Inside the pause method of PlayingState
     func pause() {
         guard let mediaPlayer = self.mediaPlayer else { return }
         print("Pausing MediaPlayer from PlayingState.")
         mediaPlayer.player.pause()
-        // Correctly pass the state type to the transition method
+        // Transition to the PausedState
         mediaPlayer.transitionToState(PausedState.self)
     }
     
@@ -54,9 +64,7 @@ class PlayingState: MediaPlayerState {
         guard let mediaPlayer = self.mediaPlayer else { return }
         print("Stopping MediaPlayer from PlayingState.")
         mediaPlayer.player.pause()
-        // Optionally reset the player item or perform other cleanup here if necessary
-        
-        // Transition to the StoppedState by passing the type itself, not an instance.
+        // Transition to the StoppedState
         mediaPlayer.transitionToState(StoppedState.self)
     }
 }

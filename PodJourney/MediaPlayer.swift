@@ -14,18 +14,13 @@ extension MediaPlayer {
     }
     
     func togglePlayPause() {
-        guard let currentState = self.currentState else {
-            print("MediaPlayer state is undefined or uninitialized.")
-            // Attempt to initialize or load default state
-            return
+            // Using isPlaying to check if the player is currently playing
+            if isPlaying {
+                pause()
+            } else {
+                manualPlay()
+            }
         }
-
-        if currentState is PlayingState {
-            self.pause() // Ensure this transitions the state to PausedState.
-        } else {
-            self.play() // Ensure this checks if playback can be initiated or resumed.
-        }
-    }
     
     private func handleUndefinedOrUninitializedState() {
         print("Player is in an undefined or uninitialized state. Checking for media URL to start new playback.")
@@ -240,54 +235,114 @@ class MediaPlayer: NSObject {
         }
     }
     
-    func play() {
-        // Ensure this method correctly transitions the state to PlayingState and is only called when appropriate.
-        self.currentState = PlayingState(mediaPlayer: self)
-        // Start or resume playback.
+    func play(url: URL? = nil) {
+        if let url = url {
+            // Prepare the new episode without auto-playing
+            prepareNewEpisode(url: url, autoPlay: false) // This method needs to prepare the episode without starting playback
+        } else {
+            // No URL provided, check if we're in a state that allows resuming playback
+            resumeCurrentEpisodePlayback()
+        }
     }
     
-    // Inside MediaPlayer class
-    func transitionToState(_ newStateType: MediaPlayerState.Type) {
-        // Create a new state instance using the required initializer from the MediaPlayerState protocol.
+    private func prepareNewEpisode(url: URL, autoPlay: Bool) {
+        // Ensure this method prepares the episode and respects the autoPlay parameter
+        let playerItem = AVPlayerItem(url: url)
+        self.player.replaceCurrentItem(with: playerItem)
+        self.currentMediaURL = url
+
+        if autoPlay {
+            // Transition to PlayingState and start playback only if autoPlay is true
+            transitionToState(PlayingState.self)
+            (currentState as? PlayingState)?.startPlaybackIfNeeded()
+        } else {
+            // Transition to a state that indicates readiness to play, without starting playback
+            // E.g., ReadyState, which indicates the player is ready and waiting for a play command
+            transitionToState(ReadyState.self)
+        }
+    }
+    
+    private func resumeCurrentEpisodePlayback() {
+        // Resume playback only if the current state allows it, such as PausedState or ReadyState
+        if currentState is PausedState || currentState is ReadyState {
+            transitionToState(PlayingState.self)
+            (currentState as? PlayingState)?.startPlaybackIfNeeded()
+        } else if !(currentState is PlayingState) {
+            // If the player is neither playing nor paused/ready, attempt to start playback of the current item
+            // This might be necessary if, for example, the app is in StoppedState but a current episode is loaded
+            transitionToState(PlayingState.self)
+            (currentState as? PlayingState)?.startPlaybackIfNeeded()
+        }
+    }
+    
+    func transitionToState(_ newStateType: MediaPlayerState.Type, forcePlay: Bool = false) {
+        print("Attempting to transition to state: \(newStateType), forcePlay: \(forcePlay), shouldAutoPlay: \(shouldAutoPlay)")
+
+        if newStateType == PlayingState.self && !forcePlay && !shouldAutoPlay {
+            print("Auto-play is disabled. Aborting transition to PlayingState.")
+            return
+        }
+
+        if let currentState = self.currentState, type(of: currentState) == newStateType {
+            print("Already in the target state (\(newStateType)), no transition needed.")
+            return
+        }
+
         let newState = newStateType.init(mediaPlayer: self)
-        
-        // Update the current state to the new state.
         self.currentState = newState
-        
         print("Transitioned to new state: \(newState)")
     }
+
+    func manualPlay() {
+            // Guard against playing when it's  already playing
+            guard !isPlaying else { return }
+
+            // If there's no current state or it's not PlayingState, initiate playback
+            if let currentState = self.currentState, !(currentState is PlayingState) {
+                player.play()
+                transitionToState(PlayingState.self, forcePlay: true)
+                print("Playback started/resumed.")
+            } else {
+                // Handle uninitialized state or force playback scenario
+                player.play() // Directly attempt to play
+                currentState = PlayingState(mediaPlayer: self)
+                print("Direct playback initiated.")
+            }
+        }
+
+    // Adjust the part of your UI or logic that handles the play button press to call manualPlay().
+    // Example: This could be tied to a button's action in your user interface.
+
 
     func prepareForNewEpisode(_ url: URL, autoPlay: Bool) {
         print("Preparing episode with URL: \(url). AutoPlay is set to: \(autoPlay).")
 
         // Ensure the player item is cleaned up before loading a new one.
         if let _ = self.player.currentItem, let observerExists = self.playerItemStatusObserver {
-            observerExists.invalidate() // Assuming 'observerExists' holds your observer token
+            observerExists.invalidate() // Removing the previous observer if exists
             print("Observer removed from current item.")
         }
 
         let playerItem = AVPlayerItem(url: url)
         self.player.replaceCurrentItem(with: playerItem)
 
-        // Setting shouldAutoPlay directly based on the autoPlay parameter
-        self.shouldAutoPlay = autoPlay // Correctly respect the function parameter
+        // Directly setting shouldAutoPlay based on the autoPlay parameter
+        self.shouldAutoPlay = autoPlay
         print("Setting shouldAutoPlay to \(autoPlay) for episode at URL: \(url).")
 
-        // Add observer to the new player item using a more robust method if available
+        // Adjusting the observer logic to respect the autoPlay flag
         self.playerItemStatusObserver = playerItem.observe(\.status, options: [.new, .old]) { [weak self] item, change in
             guard let self = self else { return }
 
-            if item.status == .readyToPlay {
-                print("Episode is ready. AutoPlay flag is currently: \(self.shouldAutoPlay).")
-                if self.shouldAutoPlay {
-                    // Only auto-play if shouldAutoPlay is true
-                    DispatchQueue.main.async {
-                        self.player.play()
-                        print("Auto-playing as episode is ready.")
-                    }
-                } else {
-                    print("Episode is ready. Waiting for user action to play since auto-play is disabled.")
+            if item.status == .readyToPlay && self.shouldAutoPlay {
+                print("Episode is ready and autoPlay is enabled. Starting playback.")
+                DispatchQueue.main.async {
+                    // Transitioning to PlayingState and starting playback if autoPlay is true
+                    self.transitionToState(PlayingState.self)
+                    (self.currentState as? PlayingState)?.startPlaybackIfNeeded()
                 }
+            } else if item.status == .readyToPlay {
+                print("Episode is ready. Waiting for user action to play since auto-play is disabled.")
             }
         }
         print("Observer added to new player item.")
