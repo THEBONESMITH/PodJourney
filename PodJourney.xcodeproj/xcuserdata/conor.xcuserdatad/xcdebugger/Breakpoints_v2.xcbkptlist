@@ -163,54 +163,6 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "739C03E2-76B5-41F3-B6C4-4679BF69E880"
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "PodJourney/MediaPlayer.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "276"
-            endingLineNumber = "276"
-            landmarkName = "prepareForNewEpisode(_:autoPlay:)"
-            landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "739C03E2-76B5-41F3-B6C4-4679BF69E880 - e8e985c59852c947"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "PodJourney.MediaPlayer.prepareForNewEpisode(_: Foundation.URL, autoPlay: Swift.Bool) -&gt; ()"
-                  moduleName = "PodJourney"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/conor/Documents/PodJourney/PodJourney/MediaPlayer.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "297"
-                  endingLineNumber = "297"
-                  offsetFromSymbolStart = "1950">
-               </Location>
-               <Location
-                  uuid = "739C03E2-76B5-41F3-B6C4-4679BF69E880 - 91a769b65155e0ec"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "closure #1 @Sendable (__C.AVPlayerItem, Foundation.NSKeyValueObservedChange&lt;__C.AVPlayerItemStatus&gt;) -&gt; () in PodJourney.MediaPlayer.prepareForNewEpisode(_: Foundation.URL, autoPlay: Swift.Bool) -&gt; ()"
-                  moduleName = "PodJourney"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/conor/Documents/PodJourney/PodJourney/MediaPlayer.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "297"
-                  endingLineNumber = "297"
-                  offsetFromSymbolStart = "128">
-               </Location>
-            </Locations>
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
             uuid = "6768672D-7CE6-46D1-83D7-63898750F1CE"
             shouldBeEnabled = "No"
             ignoreCount = "0"
@@ -218,9 +170,25 @@
             filePath = "PodJourney/MediaPlayer.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "245"
-            endingLineNumber = "245"
-            landmarkName = "transitionToState(_:)"
+            startingLineNumber = "249"
+            endingLineNumber = "249"
+            landmarkName = "MediaPlayer"
+            landmarkType = "3">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "174DB269-DAC1-46AA-AD69-CD1896F8DD4C"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "PodJourney/PodcastViewModel.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "590"
+            endingLineNumber = "590"
+            landmarkName = "selectEpisode(_:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

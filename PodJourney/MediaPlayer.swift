@@ -7,7 +7,7 @@
 
 import Foundation
 import AVFoundation
-    
+
 extension MediaPlayer {
     var isPlaying: Bool {
         return player.rate != 0
@@ -78,7 +78,7 @@ class MediaPlayer: NSObject {
         setupObservers()
         
         // Initialize with the StoppedState
-        transitionToState(StoppedState(mediaPlayer: self))
+        transitionToState(StoppedState.self) // Corrected usage
     }
     
     override func observeValue(forKeyPath keyPath: String?,
@@ -228,11 +228,15 @@ class MediaPlayer: NSObject {
         if currentState is PlayingState {
             print("Pausing MediaPlayer from PlayingState.")
             player.pause()
-            // Transition to PausedState and notify any observers or the UI about the change.
-            transitionToState(PausedState(mediaPlayer: self))
+            
+            // Correctly pass the state type to the transition method.
+            // This tells the MediaPlayer to transition to the PausedState,
+            // but does not create a new instance here; the MediaPlayer will handle that internally.
+            transitionToState(PausedState.self)
+            
             print("Playback paused. Transitioned to PausedState.")
         } else {
-            print("MediaPlayer pause action requested but not in     PlayingState. Current state: \(type(of: currentState))")
+            print("MediaPlayer pause action requested but not in PlayingState. Current state: \(type(of: currentState))")
         }
     }
     
@@ -242,51 +246,51 @@ class MediaPlayer: NSObject {
         // Start or resume playback.
     }
     
-    func transitionToState(_ newState: MediaPlayerState) {
-        guard !(newState is PlayingState && !shouldAutoPlay) else {
-            print("Skipping transition to PlayingState due to shouldAutoPlay being false.")
-            return
-        }
-
-        let prevStateName = String(describing: type(of: self.currentState))
-        let newStateName = String(describing: type(of: newState))
-
-        print("Transitioning from \(prevStateName) to \(newStateName). shouldAutoPlay: \(self.shouldAutoPlay)")
-
+    // Inside MediaPlayer class
+    func transitionToState(_ newStateType: MediaPlayerState.Type) {
+        // Create a new state instance using the required initializer from the MediaPlayerState protocol.
+        let newState = newStateType.init(mediaPlayer: self)
+        
+        // Update the current state to the new state.
         self.currentState = newState
+        
+        print("Transitioned to new state: \(newState)")
     }
-    
-    func prepareForNewEpisode(_ url: URL, autoPlay: Bool) {
-            print("Preparing episode with URL: \(url). AutoPlay is set to: \(autoPlay).")
 
-            // Ensure the player item is cleaned up before loading a new one.
+    func prepareForNewEpisode(_ url: URL, autoPlay: Bool) {
+        print("Preparing episode with URL: \(url). AutoPlay is set to: \(autoPlay).")
+
+        // Ensure the player item is cleaned up before loading a new one.
         if let _ = self.player.currentItem, let observerExists = self.playerItemStatusObserver {
             observerExists.invalidate() // Assuming 'observerExists' holds your observer token
             print("Observer removed from current item.")
         }
 
-            let playerItem = AVPlayerItem(url: url)
-            self.player.replaceCurrentItem(with: playerItem)
+        let playerItem = AVPlayerItem(url: url)
+        self.player.replaceCurrentItem(with: playerItem)
 
-            // Setting shouldAutoPlay directly based on the autoPlay parameter
-            self.shouldAutoPlay = autoPlay // Correctly respect the function parameter
-            print("Setting shouldAutoPlay to \(autoPlay) for episode at URL: \(url).")
+        // Setting shouldAutoPlay directly based on the autoPlay parameter
+        self.shouldAutoPlay = autoPlay // Correctly respect the function parameter
+        print("Setting shouldAutoPlay to \(autoPlay) for episode at URL: \(url).")
 
-            // Add observer to the new player item using a more robust method if available
+        // Add observer to the new player item using a more robust method if available
         self.playerItemStatusObserver = playerItem.observe(\.status, options: [.new, .old]) { [weak self] item, change in
             guard let self = self else { return }
 
-            if item.status == .readyToPlay && self.shouldAutoPlay {
-                // Only auto-play if shouldAutoPlay is true
-                DispatchQueue.main.async {
-                    self.player.play()
-                    print("Auto-playing as episode is ready.")
+            if item.status == .readyToPlay {
+                print("Episode is ready. AutoPlay flag is currently: \(self.shouldAutoPlay).")
+                if self.shouldAutoPlay {
+                    // Only auto-play if shouldAutoPlay is true
+                    DispatchQueue.main.async {
+                        self.player.play()
+                        print("Auto-playing as episode is ready.")
+                    }
+                } else {
+                    print("Episode is ready. Waiting for user action to play since auto-play is disabled.")
                 }
-            } else if item.status == .readyToPlay {
-                print("Episode is ready. Waiting for user action to play.")
             }
         }
-            print("Observer added to new player item.")
+        print("Observer added to new player item.")
     }
     
     func seekToProgress(_ progress: Double) {
@@ -304,5 +308,3 @@ class MediaPlayer: NSObject {
         }
     }
 }
-
-

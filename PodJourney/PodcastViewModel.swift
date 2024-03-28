@@ -97,7 +97,7 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         
         // Now MediaPlayer is ready, you can set its initial state
         if let mediaPlayer = self.mediaPlayer {
-            mediaPlayer.transitionToState(StoppedState(mediaPlayer: mediaPlayer))
+            mediaPlayer.transitionToState(StoppedState.self)
         }
         
         print("MediaPlayer initialized and delegate set.")
