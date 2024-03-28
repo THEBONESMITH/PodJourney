@@ -80,6 +80,37 @@ class MediaPlayer: NSObject {
         transitionToState(StoppedState(mediaPlayer: self))
     }
     
+    func skipForward(seconds: Double) {
+        let currentTime = player.currentTime() // 'player' is non-optional, so direct access is fine
+        let newTime = CMTimeAdd(currentTime, CMTimeMakeWithSeconds(seconds, preferredTimescale: 600))
+
+        player.seek(to: newTime) { [weak self] _ in
+            Task { [weak self] in
+                guard let self = self else { return }
+                // Now `self` is safely unwrapped for use within this block
+                let progress = self.calculateCurrentProgress() // Calculate the progress
+                await self.delegate?.playbackProgressDidChange(to: progress)
+                // Assuming 'calculateCurrentProgress()' calculates the progress based on the player's current time and total duration.
+                await self.delegate?.playbackProgressDidChange(to: progress)
+            }
+        }
+    }
+
+    func skipBackward(seconds: Double) {
+        let currentTime = player.currentTime()
+        var newTime = CMTimeSubtract(currentTime, CMTimeMakeWithSeconds(seconds, preferredTimescale: 600))
+        if CMTimeGetSeconds(newTime) < 0 {
+            newTime = CMTimeMake(value: 0, timescale: 1)
+        }
+        player.seek(to: newTime) { [weak self] _ in
+            Task { [weak self] in
+                guard let self = self else { return }
+                let progress = self.calculateCurrentProgress()
+                await self.delegate?.playbackProgressDidChange(to: progress)
+            }
+        }
+    }
+    
     func calculateCurrentProgress() -> Double {
         guard let currentItem = player.currentItem, !currentItem.duration.isIndefinite else {
             return 0.0

@@ -111,6 +111,234 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         setupTimeUpdates()
     }
     
+    @MainActor
+    func togglePlayback() async {
+        print("togglePlayback: Toggling playback. Current isPlaying state: \(self.isPlaying).")
+
+        if self.isPlaying {
+            mediaPlayer?.pause()
+            print("togglePlayback: Playback paused.")
+        } else if let episode = currentlyPlaying {
+            // Recheck if episode is loaded correctly before playing
+            await prepareAndPlayEpisode(episode, autoPlay: true)
+            print("togglePlayback: Playback started/resumed for episode: \(episode.title).")
+        } else {
+            print("togglePlayback: No episode selected or currently playing. Playback toggle ignored.")
+        }
+    }
+    
+    @MainActor
+        func prepareAndPlayEpisode(_ episode: Episode, autoPlay: Bool) async {
+            guard let episodeURL = URL(string: episode.link) else {
+                print("Invalid URL for episode: \(episode.title)")
+                return
+            }
+
+            print("Preparing episode: \(episode.title) for playback. AutoPlay flag is set to: \(autoPlay).")
+            mediaPlayer?.prepareForNewEpisode(episodeURL, autoPlay: autoPlay)
+        }
+    
+    private func updateUIPlaybackProgress() {
+        if let mediaPlayer = mediaPlayer {
+            let newProgress = mediaPlayer.calculateCurrentProgress()
+            DispatchQueue.main.async {
+                self.uiPlaybackProgress = newProgress
+            }
+        } else {
+            print("MediaPlayer instance is nil.")
+        }
+    }
+    
+    @MainActor
+    func togglePlayPause() async {
+        mediaPlayer?.togglePlayPause()
+    }
+    
+    func skipBackward(seconds: Double) {
+        mediaPlayer?.skipBackward(seconds: seconds)
+        
+        // After skipping, update the UI progress property
+        updateUIPlaybackProgress()
+    }
+        
+    func skipForward(seconds: Double) {
+        // Assuming you have a method in MediaPlayer to perform the skip
+        mediaPlayer?.skipForward(seconds: seconds)
+        
+        // After skipping, update the UI progress property
+        updateUIPlaybackProgress()
+    }
+    
+    @MainActor
+    func togglePlayPauseForEpisode(_ episode: Episode?) async {
+        guard let episode = episode else {
+            print("No episode provided for toggling play/pause.")
+            return
+        }
+        
+        // Check if the episode to play/pause is the currently playing one
+        if let currentlyPlaying = self.currentlyPlaying, currentlyPlaying.id == episode.id {
+            // The episode to control is currently selected, toggle play/pause
+            mediaPlayer?.togglePlayPause()
+        } else {
+            // If it's a different episode, first prepare it, then play
+            print("Switching to a new episode and starting playback.")
+            await prepareAndPlayEpisode(episode, autoPlay: true)
+        }
+    }
+    
+    private var _podcastImageUrl: URL? {
+        didSet {
+            DispatchQueue.main.async {
+                self.objectWillChange.send()
+            }
+        }
+    }
+    
+    private var _podcastTitle: String? {
+        didSet {
+            DispatchQueue.main.async {
+                self.objectWillChange.send()
+            }
+        }
+    }
+    
+    var podcastTitle: String? {
+        get { _podcastTitle }
+        set { _podcastTitle = newValue }
+    }
+    
+    var podcastImageUrl: URL? {
+        get { _podcastImageUrl }
+        set { _podcastImageUrl = newValue }
+    }
+    
+    func handleAppMovedToBackground() {
+            // Implementation
+        }
+    
+    func fetchEpisodes(feedUrl: String) async {
+        guard let url = URL(string: feedUrl) else {
+            print("Invalid feed URL.")
+            return
+        }
+
+        // Move to asynchronous context
+        await withCheckedContinuation { continuation in
+            let parser = FeedParser(URL: url)
+
+            parser.parseAsync { [weak self] result in
+                guard let self = self else {
+                    continuation.resume()
+                    return
+                }
+
+                DispatchQueue.main.async {
+                    switch result {
+                    case .success(let feed):
+                        if let rssFeed = feed.rssFeed {
+                            self.podcastTitle = rssFeed.title ?? "Unknown Title"
+                            self.podcastImageUrl = URL(string: rssFeed.image?.url ?? "")
+                            
+                            self.episodes = rssFeed.items?.compactMap { item -> Episode? in
+                                guard let title = item.title,
+                                      let rawDescription = item.description,
+                                      let pubDate = item.pubDate,
+                                      let episodeLink = item.enclosure?.attributes?.url,
+                                      let episodeUrl = URL(string: episodeLink) else {
+                                    return nil
+                                }
+                                
+                                let dateFormatter = DateFormatter()
+                                dateFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
+                                let pubDateString = dateFormatter.string(from: pubDate)
+                                let cleanDescription = rawDescription.simplifiedHTML().fixApostrophes()
+
+                                return Episode(
+                                    id: UUID(),
+                                    title: title,
+                                    link: episodeLink,
+                                    description: cleanDescription,
+                                    mediaURL: episodeUrl,
+                                    date: pubDateString,
+                                    author: item.iTunes?.iTunesAuthor ?? rssFeed.iTunes?.iTunesAuthor ?? "Unknown Author",
+                                    website: URL(string: item.link ?? ""),
+                                    rating: item.iTunes?.iTunesExplicit == "yes" ? "Explicit" : "Clean",
+                                    size: item.enclosure?.attributes?.length.flatMap(Int64.init) ?? 0
+                                )
+                            } ?? []
+                        } else {
+                            print("RSS feed not found.")
+                            self.episodes = []
+                        }
+                    case .failure(let error):
+                        print("Error parsing feed: \(error.localizedDescription)")
+                        self.episodes = []
+                    }
+                    // Once all updates are done, resume the continuation to signal completion of async task
+                    continuation.resume()
+                }
+            }
+        }
+    }
+    
+    func adjustVolume(to newVolume: Float) {
+        mediaPlayer?.player.volume = newVolume
+        print("Volume adjusted to \(newVolume)")
+    }
+    
+    @MainActor
+    func userDidEndInteracting(progress: Double) async {
+        // Assuming seekToProgress is an async function
+        await seekToProgress(progress)
+        // Additional logic...
+    }
+    
+    func searchPodcasts(with query: String) {
+            // Cancel any existing search request
+            searchCancellable?.cancel()
+            
+            // Ensure that the query is not empty and is not just whitespace
+            let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedQuery.isEmpty else {
+                self.searchResults = []
+                return
+            }
+            
+            let urlString = "https://itunes.apple.com/search?media=podcast&term=\(trimmedQuery.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
+            guard let url = URL(string: urlString) else { return }
+
+            // Perform the search with a delay, throttling the search requests
+            searchCancellable = URLSession.shared.dataTaskPublisher(for: url)
+                .map(\.data)
+                .decode(type: SearchResponse.self, decoder: JSONDecoder())
+                .receive(on: DispatchQueue.main)
+                .sink(receiveCompletion: { completion in
+                    switch completion {
+                    case .finished:
+                        break
+                    case .failure(let error):
+                        print(error.localizedDescription)
+                        // Update UI to show error message
+                    }
+                }, receiveValue: { [weak self] response in
+                    self?.searchResults = response.results
+                    // Update UI to show search results
+                })
+        }
+    
+    struct SearchResponse: Decodable {
+        let results: [Podcast]
+    }
+    
+    func pausePlayback() {
+        mediaPlayer?.pause()
+        DispatchQueue.main.async {
+            self.isPlaying = false
+        }
+        print("Playback paused.")
+    }
+    
     func mediaPlayerRequiresTimeFormat(seconds: Double) -> String {
             return formatTime(seconds: seconds)
         }
@@ -377,5 +605,81 @@ extension PodcastViewModel {
             self.isPlaying = isPlaying
             // Update any other relevant UI components.
         }
+    }
+}
+
+extension String {
+        func simplifiedHTML() -> String {
+            // Replace paragraph and break tags with newlines
+            let withNewLines = self.replacingOccurrences(of: "<p>", with: "\n\n")
+                               .replacingOccurrences(of: "<br>", with: "\n")
+                               .replacingOccurrences(of: "<br/>", with: "\n")
+                               .replacingOccurrences(of: "<br />", with: "\n")
+            // Remove any remaining HTML tags
+            let withoutHTMLTags = withNewLines.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression, range: nil)
+            // Trim leading and trailing whitespace and newlines
+            return withoutHTMLTags.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        func toAttributedString() -> AttributedString? {
+            do {
+                return try AttributedString(markdown: self)
+            } catch {
+                print("Error converting markdown to AttributedString: \(error)")
+                return nil
+            }
+        }
+    
+    func convertingHTMLToPlainText() -> String {
+            var plainText = self
+            // Replace paragraph tags with double newlines
+            plainText = plainText.replacingOccurrences(of: "<p>", with: "")
+            plainText = plainText.replacingOccurrences(of: "</p>", with: "\n\n")
+            // Replace line break tags with a single newline
+            let lineBreakPatterns = ["<br>", "<br/>", "<br />"]
+            for pattern in lineBreakPatterns {
+                plainText = plainText.replacingOccurrences(of: pattern, with: "\n")
+            }
+            // Decode HTML entities and strip remaining tags if needed.
+            plainText = plainText.strippingHTML().decodingHTMLEntities()
+            return plainText
+        }
+    
+    func fixApostrophes() -> String {
+            return self.replacingOccurrences(of: "â€™", with: "'")
+                .replacingOccurrences(of: "&apos;", with: "'")
+                .replacingOccurrences(of: "&#39;", with: "'")
+                // Add more replacements as needed
+        }
+    
+    func decodingHTMLEntities() -> String {
+            guard let data = self.data(using: .utf8) else { return self }
+            let options: [NSAttributedString.DocumentReadingOptionKey: Any] = [
+                .documentType: NSAttributedString.DocumentType.html,
+                .characterEncoding: String.Encoding.utf8.rawValue
+            ]
+            guard let decodedString = try? NSAttributedString(data: data, options: options, documentAttributes: nil).string else {
+                return self
+            }
+            return decodedString
+        }
+    
+    
+    func decodeUnicodeCharacters() -> String {
+        applyingTransform(StringTransform("Any-Hex/Java"), reverse: false) ?? self
+    }
+    
+    func strippingHTML() -> String {
+        guard let data = data(using: .utf8) else { return self }
+        let options: [NSAttributedString.DocumentReadingOptionKey: Any] = [
+            .documentType: NSAttributedString.DocumentType.html,
+            .characterEncoding: String.Encoding.utf8.rawValue
+        ]
+        
+        guard let attributedString = try? NSAttributedString(data: data, options: options, documentAttributes: nil) else {
+            return self
+        }
+        
+        return attributedString.string
     }
 }
