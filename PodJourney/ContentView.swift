@@ -212,12 +212,16 @@ struct ContentView: View {
                         Spacer()
                         
                         VolumeSlider(volume: $volume, onVolumeChange: { newVolume in
-                            viewModel.adjustVolume(to: Float(newVolume))
-                        })
-                        .frame(width: 100)
-                        .padding(.top, 20)
-                        .offset(x: -10, y: -8)
-                    }
+                                    viewModel.adjustVolume(to: Float(newVolume))
+                                })
+                                .frame(width: 100)
+                                .padding(.top, 20)
+                                .offset(x: -10, y: -8)
+                                .onAppear {
+                                    // Adjust the actual volume to match the UI's default when ContentView appears
+                                    viewModel.adjustVolume(to: Float(volume))
+                                }
+                            }
                     
                     HStack {
                         controlButtonsView
