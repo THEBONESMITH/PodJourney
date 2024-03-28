@@ -31,7 +31,7 @@ extension MediaPlayer {
         print("Player is in an undefined or uninitialized state. Checking for media URL to start new playback.")
         if let url = currentMediaURL {
             print("Found media URL. Starting playback for new episode.")
-            playNewEpisode(url: url) // This should handle loading the media and transitioning to PlayingState
+            playNewEpisode(url: url, autoPlay: true) // Assuming immediate playback is desired
         } else {
             print("No episode URL available to start playback.")
         }
@@ -72,12 +72,48 @@ class MediaPlayer: NSObject {
     
     override init() {
         super.init()
+        setupPlayer()
         player.addObserver(self, forKeyPath: "status", options: [.new, .old], context: nil)
         addPeriodicTimeObserver()
         setupObservers()
         
         // Initialize with the StoppedState
         transitionToState(StoppedState(mediaPlayer: self))
+    }
+    
+    override func observeValue(forKeyPath keyPath: String?,
+                               of object: Any?,
+                               change: [NSKeyValueChangeKey : Any]?,
+                               context: UnsafeMutableRawPointer?) {
+        if keyPath == "status",
+           let _ = object as? AVPlayer, // Changed 'player' to '_'
+           let statusNumber = change?[.newKey] as? NSNumber,
+           let status = AVPlayer.Status(rawValue: statusNumber.intValue) {
+            
+            switch status {
+            case .readyToPlay:
+                print("Player is ready to play")
+                // Handle player ready to play
+            case .failed:
+                print("Player failed")
+                // Handle failure
+            case .unknown:
+                print("Player status unknown")
+                // Handle unknown status
+            @unknown default:
+                print("Encountered an unknown player status")
+                // Handle any future cases
+            }
+        } else {
+            super.observeValue(forKeyPath: keyPath, of: object, change: change, context: context)
+        }
+    }
+
+    func setupPlayer() {
+        print("setupPlayer called")
+        player = AVPlayer()
+        
+        // Continue setup...
     }
     
     func skipForward(seconds: Double) {
@@ -169,37 +205,22 @@ class MediaPlayer: NSObject {
             }
         }
     
-    func playNewEpisode(url: URL? = nil, autoPlay: Bool = false) {
+    func playNewEpisode(url: URL?, autoPlay: Bool) {
         guard let playURL = url ?? currentMediaURL else {
             print("MediaPlayer play action attempted without a valid URL.")
             return
         }
 
-        // Checking if a new episode is being loaded or if it's the current one
-        if self.currentMediaURL != playURL {
-            print("MediaPlayer: New episode URL detected. Preparing to load: \(playURL)")
-            let playerItem = AVPlayerItem(url: playURL)
-            self.player.replaceCurrentItem(with: playerItem)
-            self.currentMediaURL = playURL
-            print("MediaPlayer: Loading new episode for playback.")
-        } else {
-            print("MediaPlayer: Current episode detected. Evaluating autoPlay decision.")
-        }
+        let playerItem = AVPlayerItem(url: playURL)
+        self.player.replaceCurrentItem(with: playerItem)
+        self.currentMediaURL = playURL
+        print("MediaPlayer: Loading new episode for playback.")
 
-        // Conditionally starting playback based on the autoPlay parameter
         if autoPlay {
             self.player.play()
-            print("MediaPlayer play invoked. Starting or resuming playback due to autoPlay being true.")
-            transitionToState(PlayingState(mediaPlayer: self, autoPlay: false))
+            print("MediaPlayer play invoked. Starting playback due to user action.")
         } else {
-            print("AutoPlay is disabled. New episode loaded and paused, waiting for user action to play.")
-        }
-
-        // Notifying the delegate about the playback state change if autoPlay is true
-        if autoPlay {
-            Task {
-                await self.delegate?.mediaPlayerPlaybackStateDidChange(isPlaying: true)
-            }
+            print("AutoPlay is disabled. Episode loaded, waiting for user action to play.")
         }
     }
     
@@ -217,28 +238,22 @@ class MediaPlayer: NSObject {
     
     func play() {
         // Ensure this method correctly transitions the state to PlayingState and is only called when appropriate.
-        self.currentState = PlayingState(mediaPlayer: self, autoPlay: false)
+        self.currentState = PlayingState(mediaPlayer: self)
         // Start or resume playback.
     }
     
     func transitionToState(_ newState: MediaPlayerState) {
+        guard !(newState is PlayingState && !shouldAutoPlay) else {
+            print("Skipping transition to PlayingState due to shouldAutoPlay being false.")
+            return
+        }
+
         let prevStateName = String(describing: type(of: self.currentState))
         let newStateName = String(describing: type(of: newState))
-        
-        // Log the transition with detailed state names and shouldAutoPlay status
+
         print("Transitioning from \(prevStateName) to \(newStateName). shouldAutoPlay: \(self.shouldAutoPlay)")
 
         self.currentState = newState
-
-        // Check if transitioning to PlayingState and shouldAutoPlay is true
-        if let _ = newState as? PlayingState, self.shouldAutoPlay {
-            print("Starting playback due to shouldAutoPlay being true.")
-            self.player.play()
-        } else if !(newState is PlayingState) {
-            print("Playback initiation skipped due to either shouldAutoPlay being false or current state not being PlayingState.")
-        }
-
-        // Update delegate or UI components as needed
     }
     
     func prepareForNewEpisode(_ url: URL, autoPlay: Bool) {
@@ -258,17 +273,21 @@ class MediaPlayer: NSObject {
             print("Setting shouldAutoPlay to \(autoPlay) for episode at URL: \(url).")
 
             // Add observer to the new player item using a more robust method if available
-            self.playerItemStatusObserver = playerItem.observe(\.status, options: [.new, .old]) { [weak self] item, change in
-                guard let self = self else { return }
-                if item.status == .readyToPlay && self.shouldAutoPlay {
+        self.playerItemStatusObserver = playerItem.observe(\.status, options: [.new, .old]) { [weak self] item, change in
+            guard let self = self else { return }
+
+            if item.status == .readyToPlay && self.shouldAutoPlay {
+                // Only auto-play if shouldAutoPlay is true
+                DispatchQueue.main.async {
                     self.player.play()
-                    print("Episode is ready and auto-playing.")
-                } else if item.status == .readyToPlay {
-                    print("Episode is ready. Waiting for user action to play.")
+                    print("Auto-playing as episode is ready.")
                 }
+            } else if item.status == .readyToPlay {
+                print("Episode is ready. Waiting for user action to play.")
             }
-            print("Observer added to new player item.")
         }
+            print("Observer added to new player item.")
+    }
     
     func seekToProgress(_ progress: Double) {
         guard let duration = player.currentItem?.duration else { return }

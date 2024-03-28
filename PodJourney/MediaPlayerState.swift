@@ -20,16 +20,10 @@ protocol MediaPlayerState {
 class PlayingState: MediaPlayerState {
     weak var mediaPlayer: MediaPlayer?
 
-    // Use 'required' if you are adhering to a protocol that mandates this initializer.
-    // If not necessary, you can remove 'required'.
-    required init(mediaPlayer: MediaPlayer, autoPlay: Bool) {
+    required init(mediaPlayer: MediaPlayer) {
         self.mediaPlayer = mediaPlayer
-        if autoPlay && mediaPlayer.shouldAutoPlay {
-            startPlayback()
-        } else if !autoPlay {
-            // Always start playback if the transition to this state is user-initiated.
-            startPlayback()
-        }
+        // Removed autoPlay check here since PlayingState now always means intent to play.
+        startPlayback()
     }
 
     // Added method to start playback immediately when transitioning to this state.
@@ -38,17 +32,10 @@ class PlayingState: MediaPlayerState {
                 print("PlayingState: MediaPlayer reference is nil.")
                 return
             }
-            // Check if player already has an item and play from the current position
-            if mediaPlayer.player.currentItem == nil {
-                guard let url = mediaPlayer.currentMediaURL else {
-                    print("PlayingState: No URL to play.")
-                    return
-                }
-                let playerItem = AVPlayerItem(url: url)
-                mediaPlayer.player.replaceCurrentItem(with: playerItem)
-            }
+
+            // Ensuring playback starts only if explicitly requested by user action.
             mediaPlayer.player.play()
-            print("PlayingState: Resuming playback.")
+            print("PlayingState: Playback started.")
         }
 
     func play() {
@@ -86,7 +73,7 @@ class PausedState: MediaPlayerState {
         guard let mediaPlayer = self.mediaPlayer else { return }
         print("Resuming MediaPlayer from PausedState.")
         mediaPlayer.player.play()
-        mediaPlayer.transitionToState(PlayingState(mediaPlayer: mediaPlayer, autoPlay: false)) // User-initiated play
+        mediaPlayer.transitionToState(PlayingState(mediaPlayer: mediaPlayer)) // User-initiated play
     }
     
     func pause() {
@@ -117,7 +104,7 @@ class StoppedState: MediaPlayerState {
         mediaPlayer.player.replaceCurrentItem(with: playerItem)
         mediaPlayer.player.play()
         // Transition to the PlayingState
-        mediaPlayer.transitionToState(PlayingState(mediaPlayer: mediaPlayer, autoPlay: false))
+        mediaPlayer.transitionToState(PlayingState(mediaPlayer: mediaPlayer))
     }
     
     func pause() {
@@ -155,7 +142,7 @@ class ReadyState: MediaPlayerState {
             mediaPlayer.player.replaceCurrentItem(with: playerItem)
             mediaPlayer.player.play()
             // Transition to PlayingState
-            mediaPlayer.transitionToState(PlayingState(mediaPlayer: mediaPlayer, autoPlay: true))
+            mediaPlayer.transitionToState(PlayingState(mediaPlayer: mediaPlayer))
         } else {
             print("Auto-play is disabled. Playback will not start automatically.")
         }

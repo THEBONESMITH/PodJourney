@@ -14,7 +14,7 @@ import os.log
 import AppKit
 
 // Define a logger for the podcast app
-let logger = Logger(subsystem: "com.yourdomain.PodcastApp", category: "Playback")
+let logger = Logger(subsystem: "com.yourdomain.PodJourney", category: "Playback")
 
 @MainActor
 @objc protocol AppMediaControlDelegate: AnyObject {
@@ -47,7 +47,6 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     @Published var isUserInteracting = false
     @Published var currentTimeDisplay: String = "--:--" {
         didSet {
-            print("Current Time Updated: \(currentTimeDisplay)")
             DispatchQueue.main.async {
                 // Ensuring UI updates are signaled to the main thread.
                 self.objectWillChange.send()
@@ -57,7 +56,6 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     
     @Published var remainingTimeDisplay: String = "--:--" {
         didSet {
-            print("Remaining Time Updated: \(remainingTimeDisplay)")
             DispatchQueue.main.async {
                 self.objectWillChange.send()
             }
@@ -116,12 +114,14 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         print("togglePlayback: Toggling playback. Current isPlaying state: \(self.isPlaying).")
 
         if self.isPlaying {
+            // Pausing the player directly and updating the state accordingly.
             mediaPlayer?.pause()
             print("togglePlayback: Playback paused.")
         } else if let episode = currentlyPlaying {
-            // Recheck if episode is loaded correctly before playing
-            await prepareAndPlayEpisode(episode, autoPlay: true)
-            print("togglePlayback: Playback started/resumed for episode: \(episode.title).")
+            // Direct play request, considered as explicit user action.
+            print("togglePlayback: Attempting to start/resume playback for episode: \(episode.title).")
+            // Ensure this method starts or resumes playback directly without relying on autoPlay logic.
+            mediaPlayer?.playNewEpisode(url: URL(string: episode.link), autoPlay: true)
         } else {
             print("togglePlayback: No episode selected or currently playing. Playback toggle ignored.")
         }
@@ -345,7 +345,6 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     
     nonisolated func updateTimeDisplay(currentTime: String, remainingTime: String) {
             // Implement this method to update the UI with the current time and remaining time.
-            print("Current time: \(currentTime), Remaining time: \(remainingTime)")
         }
     
     func playbackProgressDidChange(to progress: Double) {
@@ -498,8 +497,11 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     func setupPeriodicTimeObserver() {
         let interval = CMTime(seconds: 1, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         mediaPlayer?.player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
-            print("Periodic time observer triggered: \(time.seconds)") // Add this line
-            self?.updateCurrentTimeDisplay(time: time)
+            
+            Task { [weak self] in
+                guard let strongSelf = self else { return }
+                await strongSelf.updateCurrentTimeDisplay(time: time)
+            }
         }
     }
     
@@ -528,7 +530,6 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         print("Setting up time updates...")
         let interval = CMTime(seconds: 1.0, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         mediaPlayer?.player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
-            print("Periodic time observer triggered: \(time.seconds)") // Add this line
             guard let self = self else { return }
                 
             Task { @MainActor in
@@ -542,7 +543,6 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
                 let remainingTime = duration - currentTime
                     
                 if currentTime.isFinite && !currentTime.isNaN && remainingTime.isFinite && !remainingTime.isNaN {
-                    print("Current Time: \(self.formatTime(seconds: currentTime)), Remaining Time: \(self.formatTime(seconds: remainingTime))")
                     self.currentTimeDisplay = self.formatTime(seconds: currentTime)
                     self.remainingTimeDisplay = self.formatTime(seconds: remainingTime)
                 }
