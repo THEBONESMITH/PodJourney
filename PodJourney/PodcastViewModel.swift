@@ -379,16 +379,16 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
             
             // Log the current playback state along with the episode title if available
             if let episodeTitle = self.currentlyPlaying?.title {
-                print("mediaPlayerDidChangeState: MediaPlayer state changed to isPlaying: \(isPlaying) for episode: \(episodeTitle)")
+                print("🔊 mediaPlayerDidChangeState: MediaPlayer state changed to isPlaying: \(isPlaying) for episode: \(episodeTitle)")
             } else {
-                print("mediaPlayerDidChangeState: MediaPlayer state changed to isPlaying: \(isPlaying), no episode currently selected")
+                print("🔊 mediaPlayerDidChangeState: MediaPlayer state changed to isPlaying: \(isPlaying), no episode currently selected")
             }
             
             // Optionally, inform about the playback action taken
             if isPlaying {
-                print("Playback has started/resumed.")
+                print("▶️ Playback has started/resumed.")
             } else {
-                print("Playback has been paused or stopped.")
+                print("⏸ Playback has been paused or stopped.")
             }
 
             // This method informs you about the playback state change, allowing you to update your UI accordingly
@@ -594,31 +594,105 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         print("🚀 Episode selection initiated for: \(episode.title), isNewEpisode: \(isNewEpisode)")
 
         if isNewEpisode {
-            // Stop current playback if any before setting up a new episode
-            mediaPlayer?.stop() // Assuming 'stop' method resets the player and prepares it for a new item
+            // Stop any current playback and prepare the new episode.
+            mediaPlayer?.stop()
+            print("🛑 Playback stopped and media player reset for new episode selection.")
             
-            // Prepare the new episode for playback
-            print("🆕 Preparing new episode: \(episode.title)")
-            await preparePlayerForEpisode(episode, autoPlay: self.shouldAutoPlay)
-            
-            // Update the currently playing episode reference
-            self.currentlyPlaying = episode
-            print("📝 Currently playing episode updated to: \(episode.title)")
+            // Prepare the player with the new episode without auto-playing.
+            await preparePlayerForEpisode(episode, autoPlay: false)
+            print("🆕 Episode prepared: \(episode.title). AutoPlay is disabled, awaiting user action.")
 
-            // Only attempt to play the new episode if shouldAutoPlay is true
-            if self.shouldAutoPlay {
-                print("▶️ Auto-play enabled, starting playback for the new episode.")
-                self.mediaPlayer?.play()
-            } else {
-                print("⏸ New episode prepared. Waiting for user action to play.")
-            }
+            // Update the current episode reference.
+            self.currentlyPlaying = episode
+            print("📝 Currently playing episode updated to: \(episode.title), ready for user action.")
+
+            // Ensure the player is in a ready state to start playback upon user action.
+            mediaPlayer?.transitionToState(ReadyState.self)
+            print("🔄 Player is ready, awaiting play command.")
         } else {
-            print("🔄 Episode re-selected. Handling based on playback state.")
-            // Consider pausing, resuming, or stopping based on the app's expected behavior
+            print("🔄 Same episode re-selected. Checking playback state.")
+            
+            // Directly control playback here based on the current state, if needed.
+            if mediaPlayer?.isPlaying == true {
+                mediaPlayer?.pause()
+                print("⏸ Playback paused. Awaiting further action.")
+            } else {
+                print("▶️ Episode ready for playback.")
+            }
         }
-        
-        // Ensure UI updates to reflect the new episode selection
+
+        // Update UI to reflect the current state.
         await updateUIForEpisodeSelection(episode: episode)
+        print("👁️ UI updated for episode selection.")
+    }
+
+    func playSelectedEpisode(_ episode: Episode) {
+        guard currentlyPlaying?.id == episode.id else {
+            print("Episode not prepared or mismatch. Preparing episode for playback.")
+            // Prepare the episode if not already done.
+            Task {
+                await selectEpisode(episode)
+            }
+            return
+        }
+
+        print("Starting playback for episode: \(episode.title)")
+        mediaPlayer?.play()
+    }
+    
+    private func togglePlayPauseBasedOnCurrentState() {
+        
+    }
+    
+    private func togglePlayPauseForCurrentEpisode() {
+        guard let mediaPlayer = mediaPlayer else { return }
+
+        if mediaPlayer.isPlaying {
+            mediaPlayer.pause()
+            print("⏸ Episode paused. UI should now show the play button.")
+            mediaPlayer.transitionToState(PausedState.self) // Corrected to pass type
+        } else {
+            mediaPlayer.play()
+            print("▶️ Episode resumed. UI should now show the pause button.")
+            mediaPlayer.transitionToState(PlayingState.self) // Corrected to pass type
+        }
+    }
+
+    private func manageCurrentEpisodePlaybackState() {
+        guard let isPlaying = mediaPlayer?.isPlaying else { return }
+
+        if isPlaying {
+            mediaPlayer?.pause()
+            print("⏸ Playback paused. Toggle button should show play icon.")
+        } else {
+            mediaPlayer?.play()
+            print("▶️ Playback resumed. Toggle button should show pause icon.")
+        }
+    }
+    
+    private func startPlayback() {
+        mediaPlayer?.play()
+        log("Playback has started/resumed for the current episode.")
+    }
+    
+    // Example modularization of additional functionality
+    private func stopCurrentPlayback() {
+        mediaPlayer?.stop()
+        log("Playback stopped, preparing for new episode.")
+    }
+
+    private func attemptAutoPlay() {
+        if self.shouldAutoPlay {
+            log("▶️ Auto-play enabled, starting playback for the new episode.")
+            self.mediaPlayer?.play()
+        } else {
+            log("⏸ New episode prepared. Waiting for user action to play.")
+        }
+    }
+
+    private func log(_ message: String) {
+        // A centralized logging function could add more details or handle logging differently based on environment
+        print(message)
     }
 }
 

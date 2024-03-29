@@ -104,6 +104,14 @@ class MediaPlayer: NSObject {
         }
     }
 
+    /// Transitions the media player to the `ReadyState`, indicating it's ready to play the selected media
+        /// but does not start playing automatically.
+        func transitionToReadyState() {
+            // Transition to `ReadyState` without starting playback automatically.
+            transitionToState(ReadyState.self)
+            print("MediaPlayer transitioned to ReadyState, awaiting user action.")
+        }
+    
     func stop() {
             // Pause the player
             player.pause()
@@ -296,29 +304,24 @@ class MediaPlayer: NSObject {
         }
     }
     
-    func transitionToState(_ newStateType: MediaPlayerState.Type, forcePlay: Bool = false) {
-        print("Attempting to transition to state: \(newStateType), forcePlay: \(forcePlay), shouldAutoPlay: \(shouldAutoPlay)")
+    // MARK:func transitionToState
+    func transitionToState(_ newState: MediaPlayerState.Type) {
+        print("🔄 Attempting to transition to state: \(newState)")
 
-        // Prevent auto-playing when shouldAutoPlay is false unless forcePlay is explicitly true.
-        if newStateType == PlayingState.self && !shouldAutoPlay && !forcePlay {
-            print("Auto-play is disabled and not forced. Aborting transition to PlayingState.")
+        // Avoid unnecessary state transitions.
+        if let currentState = self.currentState, type(of: currentState) == newState {
+            print("✅ Already in target state (\(newState)). No action needed.")
             return
         }
 
-        // Check if already in the target state to avoid unnecessary state transitions.
-        if let currentState = self.currentState, type(of: currentState) == newStateType {
-            print("Already in the target state (\(newStateType)), no transition needed.")
-            return
-        }
+        // Transition to the new state.
+        self.currentState = newState.init(mediaPlayer: self)
+        print("✅ Transitioned to new state: \(newState)")
 
-        // Instantiate and transition to the new state.
-        let newState = newStateType.init(mediaPlayer: self)
-        self.currentState = newState
-        print("Transitioned to new state: \(newState)")
-
-        // Special handling for starting playback in PlayingState.
-        if newStateType == PlayingState.self {
-            performStateActionForPlaying()
+        // Handle specific actions for the new state, like starting playback.
+        if newState == PlayingState.self {
+            print("▶️ Ready to play. Awaiting play command.")
+            // Actions to perform when entering the PlayingState, if needed.
         }
     }
 

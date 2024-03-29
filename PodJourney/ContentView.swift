@@ -534,28 +534,23 @@ struct ContentView: View {
             .background(isHovering && selectedEpisode?.id != episode.id ? hoverColor : Color.clear)
             .cornerRadius(8)
             .onTapGesture {
-                // Handle tap: Select the episode
                 print("Tap recognized, episode selected: \(episode.title)")
                 self.selectedEpisode = episode
                 Task {
                     await viewModel.selectEpisode(episode)
                 }
             }
+            .simultaneousGesture(
+                TapGesture(count: 2)
+                    .onEnded {
+                        print("Double-tap recognized, starting playback for \(episode.title)")
+                        Task {
+                            viewModel.playSelectedEpisode(episode)
+                        }
+                    }
+            )
             .onHover { isHovering in
                 self.isHovering = isHovering
-            }
-                    .simultaneousGesture(
-                        TapGesture(count: 2)
-                            .onEnded {
-                                // Handle double tap: Play the episode
-                                print("Double-tap detected: Playing \(episode.title)")
-                                Task {
-                                    await viewModel.togglePlayPauseForEpisode(episode)
-                                }
-                            }
-                    )
-            .onHover { hover in
-                self.isHovering = hover
             }
         }
 
