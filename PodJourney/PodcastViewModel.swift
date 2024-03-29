@@ -593,35 +593,32 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         let isNewEpisode = self.currentlyPlaying?.id != episode.id
         print("🚀 Episode selection initiated for: \(episode.title), isNewEpisode: \(isNewEpisode)")
 
-        // Additional check to prevent auto-play when not intended.
-        guard !(self.isPlaying && !self.shouldAutoPlay) else {
-            print("🛑 Playback is active, but shouldAutoPlay is false. Skipping auto-play for new selection.")
-            return
-        }
-
         if isNewEpisode {
-            print("🆕 New episode selected: \(episode.title). Preparing for playback.")
-            let shouldAutoPlay = self.mediaPlayer?.shouldAutoPlay ?? false
-            print("🔄 Should auto-play: \(shouldAutoPlay)")
-
-            await preparePlayerForEpisode(episode, autoPlay: shouldAutoPlay)
+            // Stop current playback if any before setting up a new episode
+            mediaPlayer?.stop() // Assuming 'stop' method resets the player and prepares it for a new item
+            
+            // Prepare the new episode for playback
+            print("🆕 Preparing new episode: \(episode.title)")
+            await preparePlayerForEpisode(episode, autoPlay: self.shouldAutoPlay)
+            
+            // Update the currently playing episode reference
             self.currentlyPlaying = episode
-            print("📝 Updated currentlyPlaying to new episode: \(episode.title)")
+            print("📝 Currently playing episode updated to: \(episode.title)")
 
-            // Explicit check before starting playback
-            if shouldAutoPlay && !self.isPlaying {
-                print("▶️ Starting playback for new episode as shouldAutoPlay is true.")
+            // Only attempt to play the new episode if shouldAutoPlay is true
+            if self.shouldAutoPlay {
+                print("▶️ Auto-play enabled, starting playback for the new episode.")
                 self.mediaPlayer?.play()
             } else {
-                print("⏸ Playback not started as shouldAutoPlay is false or playback is already active.")
+                print("⏸ New episode prepared. Waiting for user action to play.")
             }
         } else {
-            print("🔄 Episode re-selected, checking for auto-play.")
-            // Handle re-selected episode if necessary
+            print("🔄 Episode re-selected. Handling based on playback state.")
+            // Consider pausing, resuming, or stopping based on the app's expected behavior
         }
-
+        
+        // Ensure UI updates to reflect the new episode selection
         await updateUIForEpisodeSelection(episode: episode)
-        print("✅ UI updated for episode selection: \(episode.title)")
     }
 }
 

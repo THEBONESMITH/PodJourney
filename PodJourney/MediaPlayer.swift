@@ -104,6 +104,29 @@ class MediaPlayer: NSObject {
         }
     }
 
+    func stop() {
+            // Pause the player
+            player.pause()
+
+            // Optionally, seek to the beginning of the current item if you want to reset its playback position
+            player.seek(to: CMTime.zero)
+
+            // Reset or clear the current player item if needed
+            player.replaceCurrentItem(with: nil)
+
+            // Update the media player's state to reflect that it's stopped
+            transitionToState(StoppedState.self)
+
+            // Notify the delegate or update any relevant properties to reflect the change in playback state
+            DispatchQueue.main.async {
+                Task {
+                        await self.delegate?.mediaPlayerDidChangeState(isPlaying: false)
+                    }
+
+                    print("Playback stopped and media player reset.")
+                }
+        }
+    
     func setupPlayer() {
         print("setupPlayer called")
         player = AVPlayer()
