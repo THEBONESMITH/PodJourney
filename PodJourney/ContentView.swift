@@ -534,13 +534,16 @@ struct ContentView: View {
             .background(isHovering && selectedEpisode?.id != episode.id ? hoverColor : Color.clear)
             .cornerRadius(8)
             .onTapGesture {
-                        // Handle single tap: Select the episode
-                        print("Episode selected: \(episode.title)")
-                        self.selectedEpisode = episode
-                        Task {
-                            await viewModel.selectEpisode(episode)
-                        }
-                    }
+                // Handle tap: Select the episode
+                print("Tap recognized, episode selected: \(episode.title)")
+                self.selectedEpisode = episode
+                Task {
+                    await viewModel.selectEpisode(episode)
+                }
+            }
+            .onHover { isHovering in
+                self.isHovering = isHovering
+            }
                     .simultaneousGesture(
                         TapGesture(count: 2)
                             .onEnded {
@@ -612,7 +615,6 @@ struct ContentView: View {
                 .disabled(viewModel.currentlyPlaying == nil) // Disable the button if no episode is selected
                 
                 Button(action: {
-                    // Toggle playback on button tap
                     Task {
                         await viewModel.togglePlayPause()
                     }

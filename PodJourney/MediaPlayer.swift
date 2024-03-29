@@ -13,12 +13,12 @@ extension MediaPlayer {
         return player.rate != 0
     }
     
-    func togglePlayPause() {
+    func togglePlayPause() async {
             // Using isPlaying to check if the player is currently playing
             if isPlaying {
                 pause()
             } else {
-                manualPlay()
+                await manualPlay()
             }
         }
     
@@ -220,18 +220,16 @@ class MediaPlayer: NSObject {
     }
     
     func pause() {
-        if currentState is PlayingState {
-            print("Pausing MediaPlayer from PlayingState.")
-            player.pause()
-            
-            // Correctly pass the state type to the transition method.
-            // This tells the MediaPlayer to transition to the PausedState,
-            // but does not create a new instance here; the MediaPlayer will handle that internally.
-            transitionToState(PausedState.self)
-            
-            print("Playback paused. Transitioned to PausedState.")
-        } else {
-            print("MediaPlayer pause action requested but not in PlayingState. Current state: \(type(of: currentState))")
+        DispatchQueue.main.async {
+            // This check relies on the AVPlayer's rate to determine if it's playing.
+            if self.player.rate != 0 {
+                self.player.pause()
+                // Transition to PausedState, ensuring the currentState is updated accurately.
+                self.transitionToState(PausedState.self)
+                print("Playback paused.")
+            } else {
+                print("Attempted to pause, but player is not currently playing.")
+            }
         }
     }
     
@@ -278,48 +276,53 @@ class MediaPlayer: NSObject {
     func transitionToState(_ newStateType: MediaPlayerState.Type, forcePlay: Bool = false) {
         print("Attempting to transition to state: \(newStateType), forcePlay: \(forcePlay), shouldAutoPlay: \(shouldAutoPlay)")
 
-        if newStateType == PlayingState.self && !forcePlay && !shouldAutoPlay {
-            print("Auto-play is disabled. Aborting transition to PlayingState.")
+        // Prevent auto-playing when shouldAutoPlay is false unless forcePlay is explicitly true.
+        if newStateType == PlayingState.self && !shouldAutoPlay && !forcePlay {
+            print("Auto-play is disabled and not forced. Aborting transition to PlayingState.")
             return
         }
 
+        // Check if already in the target state to avoid unnecessary state transitions.
         if let currentState = self.currentState, type(of: currentState) == newStateType {
             print("Already in the target state (\(newStateType)), no transition needed.")
             return
         }
 
+        // Instantiate and transition to the new state.
         let newState = newStateType.init(mediaPlayer: self)
         self.currentState = newState
         print("Transitioned to new state: \(newState)")
+
+        // Special handling for starting playback in PlayingState.
+        if newStateType == PlayingState.self {
+            performStateActionForPlaying()
+        }
     }
 
-    func manualPlay() {
-            // Guard against playing when it's  already playing
-            guard !isPlaying else { return }
-
-            // If there's no current state or it's not PlayingState, initiate playback
-            if let currentState = self.currentState, !(currentState is PlayingState) {
-                player.play()
-                transitionToState(PlayingState.self, forcePlay: true)
-                print("Playback started/resumed.")
-            } else {
-                // Handle uninitialized state or force playback scenario
-                player.play() // Directly attempt to play
-                currentState = PlayingState(mediaPlayer: self)
-                print("Direct playback initiated.")
-            }
+    private func performStateActionForPlaying() {
+        // Since 'player' is not optional, you don't need to unwrap it.
+        // Check if the player is playing by examining its 'rate' property.
+        if self.player.rate == 0 {
+            self.player.play()
+            print("Playback started due to state transition to PlayingState.")
+        } else {
+            print("Player is already playing.")
         }
-
-    // Adjust the part of your UI or logic that handles the play button press to call manualPlay().
-    // Example: This could be tied to a button's action in your user interface.
-
+    }
+    
+    func manualPlay() async {
+            guard !isPlaying else { return }
+            print("Starting playback manually.")
+            player.play()
+            // Similarly, prepare for additional async operations as needed
+        }
 
     func prepareForNewEpisode(_ url: URL, autoPlay: Bool) {
         print("Preparing episode with URL: \(url). AutoPlay is set to: \(autoPlay).")
 
-        // Ensure the player item is cleaned up before loading a new one.
+        // Clean up before loading a new item.
         if let _ = self.player.currentItem, let observerExists = self.playerItemStatusObserver {
-            observerExists.invalidate() // Removing the previous observer if exists
+            observerExists.invalidate() // Remove the previous observer
             print("Observer removed from current item.")
         }
 
@@ -333,16 +336,21 @@ class MediaPlayer: NSObject {
         // Adjusting the observer logic to respect the autoPlay flag
         self.playerItemStatusObserver = playerItem.observe(\.status, options: [.new, .old]) { [weak self] item, change in
             guard let self = self else { return }
-
-            if item.status == .readyToPlay && self.shouldAutoPlay {
-                print("Episode is ready and autoPlay is enabled. Starting playback.")
+            
+            if item.status == .readyToPlay {
                 DispatchQueue.main.async {
-                    // Transitioning to PlayingState and starting playback if autoPlay is true
-                    self.transitionToState(PlayingState.self)
-                    (self.currentState as? PlayingState)?.startPlaybackIfNeeded()
+                    if self.shouldAutoPlay {
+                        print("Auto-play enabled, starting playback.")
+                        Task {
+                            await self.manualPlay()
+                        }
+                        self.transitionToState(ReadyState.self)
+                    } else {
+                        print("Episode is ready. Auto-play is disabled, waiting for user action.")
+                        self.transitionToState(ReadyState.self)
+                    }
+                    self.transitionToState(ReadyState.self)
                 }
-            } else if item.status == .readyToPlay {
-                print("Episode is ready. Waiting for user action to play since auto-play is disabled.")
             }
         }
         print("Observer added to new player item.")

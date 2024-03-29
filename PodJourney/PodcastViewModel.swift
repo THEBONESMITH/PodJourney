@@ -152,7 +152,16 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     
     @MainActor
     func togglePlayPause() async {
-        mediaPlayer?.togglePlayPause()
+        guard let mediaPlayer = mediaPlayer else {
+            print("MediaPlayer is nil.")
+            return
+        }
+
+        if mediaPlayer.isPlaying {
+            mediaPlayer.pause()
+        } else {
+            await mediaPlayer.manualPlay() // Assuming manualPlay might become async
+        }
     }
     
     func skipBackward(seconds: Double) {
@@ -180,7 +189,7 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         // Check if the episode to play/pause is the currently playing one
         if let currentlyPlaying = self.currentlyPlaying, currentlyPlaying.id == episode.id {
             // The episode to control is currently selected, toggle play/pause
-            mediaPlayer?.togglePlayPause()
+            await mediaPlayer?.togglePlayPause()
         } else {
             // If it's a different episode, first prepare it, then play
             print("Switching to a new episode and starting playback.")
