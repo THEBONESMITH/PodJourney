@@ -344,10 +344,8 @@ class MediaPlayer: NSObject {
                         Task {
                             await self.manualPlay()
                         }
-                        self.transitionToState(ReadyState.self)
                     } else {
                         print("Episode is ready. Auto-play is disabled, waiting for user action.")
-                        self.transitionToState(ReadyState.self)
                     }
                     self.transitionToState(ReadyState.self)
                 }

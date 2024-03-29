@@ -109,7 +109,7 @@ struct ContentView: View {
                             if showingSearch {
                                 // MARK: - Search View (when search is active)
                                 SearchView(showingSearch: $showingSearch, viewModel: viewModel)
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    .frame(maxWidth: .infinity,          maxHeight: .infinity)
                             } else if showingEpisodeDetail, let episode = selectedEpisode {
                                 // MARK: - Episode Details View with Back Button
                                 VStack(alignment: .leading) {

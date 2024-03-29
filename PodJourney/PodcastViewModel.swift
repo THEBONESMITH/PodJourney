@@ -591,41 +591,39 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     @MainActor
     func selectEpisode(_ episode: Episode) async {
         let isNewEpisode = self.currentlyPlaying?.id != episode.id
-        print("Episode selection initiated for: \(episode.title), isNewEpisode: \(isNewEpisode)")
+        print("Episode selection initiated for: \(episode.title), isNewEpisode: \(isNewEpisode)") // ** Breakpoint
 
         if isNewEpisode {
-            print("New episode selected: \(episode.title). Preparing for playback.")
+            print("New episode selected: \(episode.title). Preparing for playback.") // ** Breakpoint
             // Determine if auto-play should be enabled based on application logic or user settings
-            let shouldAutoPlay = self.mediaPlayer?.shouldAutoPlay ?? false
+            let shouldAutoPlay = self.mediaPlayer?.shouldAutoPlay ?? false // ** Breakpoint
             
             // Prepare the player for the episode without automatically starting playback
-            await preparePlayerForEpisode(episode, autoPlay: false)
+            await preparePlayerForEpisode(episode, autoPlay: false) // ** Breakpoint
             self.currentlyPlaying = episode // Update the currentlyPlaying episode reference
             
             if shouldAutoPlay {
                 // If auto-play is enabled, explicitly start playback
-                print("Auto-play is enabled. Episode will start playing automatically.")
-                self.mediaPlayer?.play()
+                print("Auto-play is enabled. Episode will start playing automatically.") // ** Breakpoint
+                self.mediaPlayer?.play() // ** Breakpoint
             } else {
-                print("Auto-play is disabled. Episode prepared without auto-play.")
-                // The episode is ready and will wait for user action to play
+                print("Auto-play is disabled. Episode prepared without auto-play.") // Useful to confirm auto-play setting
             }
         } else {
-            print("Episode re-selected, checking for auto-play.")
+            print("Episode re-selected, checking for auto-play.") // ** Breakpoint
             // Here, you might decide to play the episode if it's re-selected based on your app's behavior
-            // or simply do nothing, assuming the episode is already loaded and ready to play or playing
             if let shouldAutoPlay = self.mediaPlayer?.shouldAutoPlay, shouldAutoPlay {
                 // If mediaPlayer is not nil and shouldAutoPlay is true, start playback
-                print("Re-selected episode will start playing automatically due to auto-play setting.")
-                self.mediaPlayer?.play()
+                print("Re-selected episode will start playing automatically due to auto-play setting.") // ** Breakpoint
+                self.mediaPlayer?.play() // ** Breakpoint
             } else {
                 // Do nothing or show controls allowing the user to play the episode
-                print("Re-selected episode prepared without auto-play. Waiting for user action.")
+                print("Re-selected episode prepared without auto-play. Waiting for user action.") // Useful for flow verification
             }
         }
 
         // Ensure the UI is updated to reflect the new episode selection
-        await updateUIForEpisodeSelection(episode: episode)
+        await updateUIForEpisodeSelection(episode: episode) // ** Breakpoint
     }
 }
 
