@@ -53,6 +53,7 @@ class MediaPlayer: NSObject {
     var isEpisodeLoaded: Bool = false
     var currentlyPlayingEpisode: Episode?
     var shouldAutoPlay = false
+    var userDidRequestPlayback: Bool = false
     var currentState: MediaPlayerState? {
         didSet {
             currentState?.mediaPlayer = self
@@ -352,10 +353,16 @@ class MediaPlayer: NSObject {
     }
     
     func manualPlay() async {
-            guard !isPlaying else { return }
-            print("Starting playback manually.")
-            player.play()
-            // Similarly, prepare for additional async operations as needed
+            guard !isPlaying else {
+                print("Playback is already in progress.")
+                return
+            }
+
+            self.userDidRequestPlayback = true
+
+            // Directly invoking play
+            self.player.play()
+            print("Playback started manually.")
         }
 
     func prepareForNewEpisode(_ url: URL, autoPlay: Bool) {

@@ -65,7 +65,6 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     @Published var elapsedTime: Double = 0.0
     @Published var remainingTime: Double = 0.0
     // Removed the duplicated MediaPlayer property
-    @Published var mediaPlayer: MediaPlayer?
     @Published var isPreparingInitialPlayback = true
     @Published var podcastCategory: String = "General"
     @Published var searchResults: [Podcast] = [] // Assume Podcast is your model type for search results
@@ -86,28 +85,37 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     var timeObserverToken: Any?
     var shouldAutoPlay = false
     var player: AVPlayer?
+    var mediaPlayer: MediaPlayer
     
-    override init() {
-        super.init()
-        print("Initializing PodcastViewModel...")
-        
-        // Initialize MediaPlayer without setting an initial state here
-        let newMediaPlayer = MediaPlayer()
-        self.mediaPlayer = newMediaPlayer
-        
-        // Now MediaPlayer is ready, you can set its initial state
-        if let mediaPlayer = self.mediaPlayer {
-            mediaPlayer.transitionToState(StoppedState.self)
+    init(mediaPlayer: MediaPlayer) {
+            self.mediaPlayer = mediaPlayer
+            super.init()
+            print("Initializing PodcastViewModel...")
+
+            // Since MediaPlayer is already passed in, we directly use it
+            mediaPlayer.transitionToState(StoppedState.self, forcePlay: false)
+            
+            print("MediaPlayer initialized and delegate set.")
+            
+            // Additional setup after MediaPlayer is fully configured
+            setupDebouncedSeek()
+            setupPlaybackProgressSync()
+            setupMediaPlayer()
+            setupTimeUpdates()
         }
-        
-        print("MediaPlayer initialized and delegate set.")
-        
-        // Additional setup after MediaPlayer is fully configured
-        setupDebouncedSeek()
-        setupPlaybackProgressSync()
-        setupMediaPlayer()
-        setupTimeUpdates()
-    }
+    
+    func userRequestsPlayback(for episode: Episode) {
+            // Assuming mediaPlayer is accessible here and has a userDidRequestPlayback property
+        mediaPlayer.userDidRequestPlayback = true
+            // Call any methods necessary to start playback
+            Task {
+                playSelectedEpisode(episode)
+            }
+        }
+    
+    func startPlaybackManually() async {
+        await mediaPlayer.manualPlay()
+        }
     
     @MainActor
     func togglePlayback() async {
@@ -115,14 +123,14 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
 
         if self.isPlaying {
             // Pausing the player directly and updating the state accordingly.
-            mediaPlayer?.pause()
+            mediaPlayer.pause()
             print("togglePlayback: Playback paused.")
         } else if let episode = currentlyPlaying {
             // Direct play request, considered as explicit user action.
             print("togglePlayback: Attempting to start/resume playback for episode: \(episode.title).")
             
             // Assuming mediaPlayer has been updated to handle state transitions and start playback
-            mediaPlayer?.play(url: URL(string: episode.link))
+            mediaPlayer.play(url: URL(string: episode.link))
         } else {
             print("togglePlayback: No episode selected or currently playing. Playback toggle ignored.")
         }
@@ -136,36 +144,27 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
             }
 
             print("Preparing episode: \(episode.title) for playback. AutoPlay flag is set to: \(autoPlay).")
-            mediaPlayer?.prepareForNewEpisode(episodeURL, autoPlay: autoPlay)
+            mediaPlayer.prepareForNewEpisode(episodeURL, autoPlay: autoPlay)
         }
     
     private func updateUIPlaybackProgress() {
-        if let mediaPlayer = mediaPlayer {
-            let newProgress = mediaPlayer.calculateCurrentProgress()
-            DispatchQueue.main.async {
-                self.uiPlaybackProgress = newProgress
-            }
-        } else {
-            print("MediaPlayer instance is nil.")
+        let newProgress = mediaPlayer.calculateCurrentProgress()
+        DispatchQueue.main.async {
+            self.uiPlaybackProgress = newProgress
         }
     }
     
     @MainActor
     func togglePlayPause() async {
-        guard let mediaPlayer = mediaPlayer else {
-            print("MediaPlayer is nil.")
-            return
-        }
-
         if mediaPlayer.isPlaying {
             mediaPlayer.pause()
         } else {
             await mediaPlayer.manualPlay() // Assuming manualPlay might become async
         }
     }
-    
+
     func skipBackward(seconds: Double) {
-        mediaPlayer?.skipBackward(seconds: seconds)
+        mediaPlayer.skipBackward(seconds: seconds)
         
         // After skipping, update the UI progress property
         updateUIPlaybackProgress()
@@ -173,7 +172,7 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         
     func skipForward(seconds: Double) {
         // Assuming you have a method in MediaPlayer to perform the skip
-        mediaPlayer?.skipForward(seconds: seconds)
+        mediaPlayer.skipForward(seconds: seconds)
         
         // After skipping, update the UI progress property
         updateUIPlaybackProgress()
@@ -189,7 +188,7 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         // Check if the episode to play/pause is the currently playing one
         if let currentlyPlaying = self.currentlyPlaying, currentlyPlaying.id == episode.id {
             // The episode to control is currently selected, toggle play/pause
-            await mediaPlayer?.togglePlayPause()
+            await mediaPlayer.togglePlayPause()
         } else {
             // If it's a different episode, first prepare it, then play
             print("Switching to a new episode and starting playback.")
@@ -293,7 +292,7 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     }
     
     func adjustVolume(to newVolume: Float) {
-        mediaPlayer?.player.volume = newVolume
+        mediaPlayer.player.volume = newVolume
         print("Volume adjusted to \(newVolume)")
     }
     
@@ -342,7 +341,7 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     }
     
     func pausePlayback() {
-        mediaPlayer?.pause()
+        mediaPlayer.pause()
         DispatchQueue.main.async {
             self.isPlaying = false
         }
@@ -455,11 +454,11 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         if self.currentlyPlayingEpisode?.id != episode.id {
             // New episode logic
             self.currentlyPlayingEpisode = episode
-            mediaPlayer?.currentMediaURL = episodeURL
-            mediaPlayer?.prepareForNewEpisode(episodeURL, autoPlay: autoPlay)
+            mediaPlayer.currentMediaURL = episodeURL
+            mediaPlayer.prepareForNewEpisode(episodeURL, autoPlay: autoPlay)
             
             if autoPlay {
-                    mediaPlayer?.play(url: URL(string: episode.link)) // This should only be called if autoPlay is true.
+                mediaPlayer.play(url: URL(string: episode.link)) // This should only be called if autoPlay is true.
                 } else {
                     print("Episode prepared, waiting for user action to play.")
                     // Do not initiate playback here.
@@ -468,9 +467,9 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
             // Handling re-selected or currently paused episode
             if autoPlay {
                 print("Episode re-selected with autoPlay enabled. Checking current playback state.")
-                if mediaPlayer?.currentState is PausedState {
+                if mediaPlayer.currentState is PausedState {
                     print("Resuming playback for the currently paused episode.")
-                    mediaPlayer?.play(url: URL(string: episode.link))
+                    mediaPlayer.play(url: URL(string: episode.link))
                 } else {
                     print("Current state does not require action. Playback remains paused or stopped.")
                 }
@@ -483,10 +482,6 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     @MainActor
     func seekToProgress(_ progress: Double) async {
         print("Seeking to progress: \(progress)")
-        guard let mediaPlayer = mediaPlayer else {
-            print("MediaPlayer instance is nil.")
-            return
-        }
         
         // Directly calling a synchronous method without actual awaiting, but in an async context
         mediaPlayer.seekToProgress(progress)
@@ -494,7 +489,7 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     
     func updateCurrentTimeDisplay(time: CMTime) {
         let currentSeconds = time.seconds
-        let durationSeconds = mediaPlayer?.player.currentItem?.duration.seconds ?? 0
+        let durationSeconds = mediaPlayer.player.currentItem?.duration.seconds ?? 0
         let remainingSeconds = max(durationSeconds - currentSeconds, 0)
 
         print("Current seconds: \(currentSeconds), Duration: \(durationSeconds), Remaining: \(remainingSeconds)")
@@ -506,7 +501,7 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     
     func setupPeriodicTimeObserver() {
         let interval = CMTime(seconds: 1, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
-        mediaPlayer?.player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
+        mediaPlayer.player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
             
             Task { [weak self] in
                 guard let strongSelf = self else { return }
@@ -531,7 +526,7 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     // Call this method when your player starts playing
         func startPlaybackUpdates() {
             setupPeriodicTimeObserver()
-            if let duration = mediaPlayer?.player.currentItem?.duration.seconds, duration.isFinite {
+            if let duration = mediaPlayer.player.currentItem?.duration.seconds, duration.isFinite {
                 totalDuration = duration
             }
         }
@@ -539,11 +534,11 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     private func setupTimeUpdates() {
         print("Setting up time updates...")
         let interval = CMTime(seconds: 1.0, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
-        mediaPlayer?.player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
+        mediaPlayer.player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
             guard let self = self else { return }
                 
             Task { @MainActor in
-                guard let duration = self.mediaPlayer?.player.currentItem?.duration.seconds,
+                guard let duration = self.mediaPlayer.player.currentItem?.duration.seconds,
                       duration.isFinite && !duration.isNaN else {
                     print("Invalid duration. Skipping time update.")
                     return
@@ -562,7 +557,7 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     
     private func setupMediaPlayer() {
             self.mediaPlayer = MediaPlayer()
-            self.mediaPlayer?.delegate = self // Correctly set delegate here
+        self.mediaPlayer.delegate = self // Correctly set delegate here
             // Other setup or configuration
         }
     
@@ -594,7 +589,7 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         print("🚀 Episode selection initiated for: \(episode.title), isNewEpisode: \(isNewEpisode)")
 
         if isNewEpisode {
-            mediaPlayer?.stop()
+            mediaPlayer.stop()
             print("🛑 Playback stopped and media player reset for new episode selection.")
 
             await preparePlayerForEpisode(episode, autoPlay: false)
@@ -604,7 +599,7 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
             print("📝 Currently playing episode updated to: \(episode.title), ready for user action.")
 
             // Ensure player is ready to play without automatically starting playback
-            mediaPlayer?.transitionToState(ReadyState.self, forcePlay: false)
+            mediaPlayer.transitionToState(ReadyState.self, forcePlay: false)
             print("🔄 Player transitioned to ReadyState, awaiting user action to play.")
         } else {
             // Handle reselection of the same episode
@@ -626,7 +621,7 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         }
 
         print("Starting playback for episode: \(episode.title)")
-        mediaPlayer?.play()
+        mediaPlayer.play()
     }
     
     private func togglePlayPauseBasedOnCurrentState() {
@@ -634,7 +629,6 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     }
     
     private func togglePlayPauseForCurrentEpisode() {
-        guard let mediaPlayer = mediaPlayer else { return }
 
         if mediaPlayer.isPlaying {
             mediaPlayer.pause()
@@ -648,32 +642,31 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     }
 
     private func manageCurrentEpisodePlaybackState() {
-        guard let isPlaying = mediaPlayer?.isPlaying else { return }
 
         if isPlaying {
-            mediaPlayer?.pause()
+            mediaPlayer.pause()
             print("⏸ Playback paused. Toggle button should show play icon.")
         } else {
-            mediaPlayer?.play()
+            mediaPlayer.play()
             print("▶️ Playback resumed. Toggle button should show pause icon.")
         }
     }
     
     private func startPlayback() {
-        mediaPlayer?.play()
+        mediaPlayer.play()
         log("Playback has started/resumed for the current episode.")
     }
     
     // Example modularization of additional functionality
     private func stopCurrentPlayback() {
-        mediaPlayer?.stop()
+        mediaPlayer.stop()
         log("Playback stopped, preparing for new episode.")
     }
 
     private func attemptAutoPlay() {
         if self.shouldAutoPlay {
             log("▶️ Auto-play enabled, starting playback for the new episode.")
-            self.mediaPlayer?.play()
+            self.mediaPlayer.play()
         } else {
             log("⏸ New episode prepared. Waiting for user action to play.")
         }

@@ -28,29 +28,34 @@ class PlayingState: MediaPlayerState {
     // This method must be explicitly called to start playback.
     func startPlaybackIfNeeded() {
         guard let mediaPlayer = self.mediaPlayer else {
-            print("PlayingState: MediaPlayer reference is nil.")
+            print("MediaPlayer reference is nil.")
             return
         }
 
-        // Check if the media player is already playing
-        if !mediaPlayer.isPlaying {
-            // If not, start playback
-            mediaPlayer.player.play()
-            print("Playback started.")
+        if mediaPlayer.userDidRequestPlayback {
+            if !mediaPlayer.isPlaying {
+                mediaPlayer.player.play()
+                print("Playback started by user request.")
+            } else {
+                print("MediaPlayer is already playing. No action needed.")
+            }
         } else {
-            // If it is already playing, log that no action is needed
-            print("MediaPlayer is already playing.")
+            print("Playback start attempt without user request. Aborting.")
         }
     }
     
     func play() {
-        guard let mediaPlayer = self.mediaPlayer, mediaPlayer.shouldAutoPlay else {
-            print("Auto-play is disabled. Waiting for user action to play.")
-            return
+            guard let mediaPlayer = self.mediaPlayer else { return }
+
+            if mediaPlayer.userDidRequestPlayback {
+                mediaPlayer.player.play()
+                print("Playback started by user request.")
+                // Reset the flag after starting playback
+                mediaPlayer.userDidRequestPlayback = false
+            } else {
+                print("Playback start attempt without user request. Aborting.")
+            }
         }
-        // If shouldAutoPlay is true, proceed with playback
-        startPlaybackIfNeeded()
-    }
     
     func pause() {
         guard let mediaPlayer = self.mediaPlayer else { return }

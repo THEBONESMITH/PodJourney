@@ -11,7 +11,10 @@ import SwiftUI
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
     var window: NSWindow!
-    let viewModel = PodcastViewModel() // Initialize viewModel here
+    // Assuming MediaPlayer initialization doesn't require additional parameters:
+    let mediaPlayer = MediaPlayer()
+    lazy var viewModel = PodcastViewModel(mediaPlayer: mediaPlayer)
+
 
     func applicationDidFinishLaunching(_ notification: Notification) {
             let contentView = ContentView().environmentObject(viewModel)
@@ -37,11 +40,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
 @main
 struct PodJourneyApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    let mediaPlayer = MediaPlayer()
+    let viewModel: PodcastViewModel
+
+    init() {
+        viewModel = PodcastViewModel(mediaPlayer: mediaPlayer)
+    }
 
     var body: some Scene {
-        Settings {
-            EmptyView()
+        WindowGroup {
+            ContentView()
+                .environmentObject(viewModel)
         }
     }
 }
+
+

@@ -542,9 +542,9 @@ struct ContentView: View {
             }
             .simultaneousGesture(
                 TapGesture(count: 2).onEnded {
-                    print("Double-tap recognized, explicitly initiating playback for \(episode.title)")
+                    // Replace direct mediaPlayer access with a call to the new ViewModel method
                     Task {
-                        viewModel.playSelectedEpisode(episode)
+                        viewModel.userRequestsPlayback(for: episode)
                     }
                 }
             )
@@ -675,7 +675,7 @@ struct ContentView: View {
             Button(action: {
                 // Wrap the async call in a Task
                 Task {
-                    await viewModel.togglePlayback()
+                    await viewModel.startPlaybackManually()
                 }
             }) {
                 Image(systemName: viewModel.isPlaying ? "pause.fill" : "play.fill")
@@ -688,12 +688,10 @@ struct ContentView: View {
     }
     
     struct EpisodeView: View {
-        @StateObject var viewModel = PodcastViewModel()
-        @State private var selectedEpisode: Episode? = nil // Example definition
-        
+        @EnvironmentObject var viewModel: PodcastViewModel
+        @State private var selectedEpisode: Episode? = nil
+
         var body: some View {
-            // Assuming you have a way to select an episode
-            // For demonstration, a button is used to trigger playback preparation
             Button("Play Episode") {
                 if let episode = selectedEpisode {
                     Task {
