@@ -541,13 +541,12 @@ struct ContentView: View {
                 }
             }
             .simultaneousGesture(
-                TapGesture(count: 2)
-                    .onEnded {
-                        print("Double-tap recognized, starting playback for \(episode.title)")
-                        Task {
-                            viewModel.playSelectedEpisode(episode)
-                        }
+                TapGesture(count: 2).onEnded {
+                    print("Double-tap recognized, starting playback for \(episode.title)")
+                    Task {
+                        viewModel.playSelectedEpisode(episode)
                     }
+                }
             )
             .onHover { isHovering in
                 self.isHovering = isHovering

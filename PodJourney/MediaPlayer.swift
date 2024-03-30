@@ -103,6 +103,17 @@ class MediaPlayer: NSObject {
             super.observeValue(forKeyPath: keyPath, of: object, change: change, context: context)
         }
     }
+    
+    func transitionToReadyStateWithoutAutoplay() {
+        print("🔄 Transitioning to ReadyState without auto-play.")
+
+        if !(currentState is ReadyState) {
+            self.currentState = ReadyState(mediaPlayer: self)
+            print("✅ Transitioned to ReadyState. Awaiting user action to play.")
+        } else {
+            print("✅ Already in ReadyState. Awaiting user action.")
+        }
+    }
 
     /// Transitions the media player to the `ReadyState`, indicating it's ready to play the selected media
         /// but does not start playing automatically.
@@ -305,12 +316,12 @@ class MediaPlayer: NSObject {
     }
     
     // MARK:func transitionToState
-    func transitionToState(_ newState: MediaPlayerState.Type) {
-        print("🔄 Attempting to transition to state: \(newState)")
+    func transitionToState(_ newState: MediaPlayerState.Type, forcePlay: Bool = false) {
+        print("🔄 Attempting to transition to state: \(newState), forcePlay: \(forcePlay)")
 
-        // Avoid unnecessary state transitions.
-        if let currentState = self.currentState, type(of: currentState) == newState {
-            print("✅ Already in target state (\(newState)). No action needed.")
+        // Check for unnecessary transitions and auto-play conditions.
+        guard type(of: currentState) != newState else {
+            print("✅ Already in target state (\(newState)). No transition needed.")
             return
         }
 
@@ -318,13 +329,17 @@ class MediaPlayer: NSObject {
         self.currentState = newState.init(mediaPlayer: self)
         print("✅ Transitioned to new state: \(newState)")
 
-        // Handle specific actions for the new state, like starting playback.
-        if newState == PlayingState.self {
-            print("▶️ Ready to play. Awaiting play command.")
-            // Actions to perform when entering the PlayingState, if needed.
+        // Handle specific actions based on the new state.
+        if newState == PlayingState.self && forcePlay {
+            print("▶️ Initiating playback.")
+            // Code to start playback.
         }
     }
 
+    private func performActionsForPlaying() {
+        
+    }
+    
     private func performStateActionForPlaying() {
         // Since 'player' is not optional, you don't need to unwrap it.
         // Check if the player is playing by examining its 'rate' property.

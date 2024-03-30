@@ -594,34 +594,23 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         print("🚀 Episode selection initiated for: \(episode.title), isNewEpisode: \(isNewEpisode)")
 
         if isNewEpisode {
-            // Stop any current playback and prepare the new episode.
+            // Stop any current playback and reset the player for the new episode.
             mediaPlayer?.stop()
             print("🛑 Playback stopped and media player reset for new episode selection.")
-            
-            // Prepare the player with the new episode without auto-playing.
+
+            // Prepare the new episode without auto-playing.
             await preparePlayerForEpisode(episode, autoPlay: false)
             print("🆕 Episode prepared: \(episode.title). AutoPlay is disabled, awaiting user action.")
 
-            // Update the current episode reference.
+            // Update the current episode and ensure the player is ready for playback.
             self.currentlyPlaying = episode
-            print("📝 Currently playing episode updated to: \(episode.title), ready for user action.")
-
-            // Ensure the player is in a ready state to start playback upon user action.
-            mediaPlayer?.transitionToState(ReadyState.self)
-            print("🔄 Player is ready, awaiting play command.")
+            mediaPlayer?.transitionToState(ReadyState.self, forcePlay: false)
+            print("🔄 Player transitioned to ReadyState, awaiting user action to play.")
         } else {
-            print("🔄 Same episode re-selected. Checking playback state.")
-            
-            // Directly control playback here based on the current state, if needed.
-            if mediaPlayer?.isPlaying == true {
-                mediaPlayer?.pause()
-                print("⏸ Playback paused. Awaiting further action.")
-            } else {
-                print("▶️ Episode ready for playback.")
-            }
+            print("🔄 Same episode re-selected. Awaiting user action for playback.")
         }
 
-        // Update UI to reflect the current state.
+        // Trigger UI update to reflect the new episode selection and state.
         await updateUIForEpisodeSelection(episode: episode)
         print("👁️ UI updated for episode selection.")
     }
