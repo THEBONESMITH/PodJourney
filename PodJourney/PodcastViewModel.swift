@@ -594,23 +594,23 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         print("🚀 Episode selection initiated for: \(episode.title), isNewEpisode: \(isNewEpisode)")
 
         if isNewEpisode {
-            // Stop any current playback and reset the player for the new episode.
             mediaPlayer?.stop()
             print("🛑 Playback stopped and media player reset for new episode selection.")
 
-            // Prepare the new episode without auto-playing.
             await preparePlayerForEpisode(episode, autoPlay: false)
             print("🆕 Episode prepared: \(episode.title). AutoPlay is disabled, awaiting user action.")
 
-            // Update the current episode and ensure the player is ready for playback.
             self.currentlyPlaying = episode
+            print("📝 Currently playing episode updated to: \(episode.title), ready for user action.")
+
+            // Ensure player is ready to play without automatically starting playback
             mediaPlayer?.transitionToState(ReadyState.self, forcePlay: false)
             print("🔄 Player transitioned to ReadyState, awaiting user action to play.")
         } else {
-            print("🔄 Same episode re-selected. Awaiting user action for playback.")
+            // Handle reselection of the same episode
+            print("🔄 Same episode re-selected. No immediate action taken.")
         }
 
-        // Trigger UI update to reflect the new episode selection and state.
         await updateUIForEpisodeSelection(episode: episode)
         print("👁️ UI updated for episode selection.")
     }

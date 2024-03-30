@@ -317,22 +317,22 @@ class MediaPlayer: NSObject {
     
     // MARK:func transitionToState
     func transitionToState(_ newState: MediaPlayerState.Type, forcePlay: Bool = false) {
-        print("🔄 Attempting to transition to state: \(newState), forcePlay: \(forcePlay)")
-
-        // Check for unnecessary transitions and auto-play conditions.
         guard type(of: currentState) != newState else {
-            print("✅ Already in target state (\(newState)). No transition needed.")
+            print("✅ Already in the target state (\(newState)). No transition necessary.")
             return
         }
 
-        // Transition to the new state.
-        self.currentState = newState.init(mediaPlayer: self)
+        print("🔄 Transitioning to state: \(newState)")
+        currentState = newState.init(mediaPlayer: self)
         print("✅ Transitioned to new state: \(newState)")
 
-        // Handle specific actions based on the new state.
+        // Execute actions based on the specific state
         if newState == PlayingState.self && forcePlay {
-            print("▶️ Initiating playback.")
-            // Code to start playback.
+            // Only start playback if explicitly requested
+            play()
+        } else {
+            // For ReadyState, ensure the player is prepared but not playing
+            print("🔄 Player is in ReadyState, ready for user command.")
         }
     }
 
