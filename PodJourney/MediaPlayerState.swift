@@ -61,16 +61,12 @@ class PlayingState: MediaPlayerState {
         guard let mediaPlayer = self.mediaPlayer else { return }
         print("Pausing MediaPlayer from PlayingState.")
         mediaPlayer.player.pause()
-        // Transition to the PausedState
-        mediaPlayer.transitionToState(PausedState.self)
     }
     
     func stop() {
         guard let mediaPlayer = self.mediaPlayer else { return }
         print("Stopping MediaPlayer from PlayingState.")
         mediaPlayer.player.pause()
-        // Transition to the StoppedState
-        mediaPlayer.transitionToState(StoppedState.self)
     }
 }
 
@@ -86,9 +82,6 @@ class PausedState: MediaPlayerState {
         guard let mediaPlayer = self.mediaPlayer else { return }
         print("Resuming MediaPlayer from PausedState.")
         mediaPlayer.player.play()
-        
-        // Correctly pass the state type to the transition method
-        mediaPlayer.transitionToState(PlayingState.self)
     }
 
     
@@ -100,8 +93,6 @@ class PausedState: MediaPlayerState {
         guard let mediaPlayer = self.mediaPlayer else { return }
         print("Stopping MediaPlayer from PausedState.")
         mediaPlayer.player.pause()
-        // Transition to the StoppedState
-        mediaPlayer.transitionToState(StoppedState.self)
     }
 }
 
@@ -119,8 +110,6 @@ class StoppedState: MediaPlayerState {
         let playerItem = AVPlayerItem(url: url)
         mediaPlayer.player.replaceCurrentItem(with: playerItem)
         mediaPlayer.player.play()
-        // Transition to the PlayingState
-        mediaPlayer.transitionToState(PlayingState.self)
     }
     
     func pause() {
@@ -173,7 +162,6 @@ class ReadyState: MediaPlayerState {
         
         print("Stopping MediaPlayer from ReadyState.")
         mediaPlayer.player.pause()
-        mediaPlayer.player.replaceCurrentItem(with: nil) // Optional: clear the current item if stopping from ReadyState
-        mediaPlayer.transitionToState(StoppedState.self)
+        mediaPlayer.player.replaceCurrentItem(with: nil) 
     }
 }

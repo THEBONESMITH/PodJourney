@@ -18,7 +18,7 @@ extension MediaPlayer {
             if isPlaying {
                 pause()
             } else {
-                await manualPlay()
+                manualPlay()
             }
         }
     
@@ -30,6 +30,13 @@ extension MediaPlayer {
         } else {
             print("No episode URL available to start playback.")
         }
+    }
+}
+
+// Add this extension to your project
+extension AVPlayer {
+    var isPlaying: Bool {
+        return rate != 0 && error == nil
     }
 }
     
@@ -72,57 +79,33 @@ class MediaPlayer: NSObject {
         player.addObserver(self, forKeyPath: "status", options: [.new, .old], context: nil)
         addPeriodicTimeObserver()
         setupObservers()
-        
-        // Initialize with the StoppedState
-        transitionToState(StoppedState.self) // Corrected usage
     }
     
-    override func observeValue(forKeyPath keyPath: String?,
-                               of object: Any?,
-                               change: [NSKeyValueChangeKey : Any]?,
-                               context: UnsafeMutableRawPointer?) {
-        if keyPath == "status",
-           let _ = object as? AVPlayer, // Changed 'player' to '_'
-           let statusNumber = change?[.newKey] as? NSNumber,
-           let status = AVPlayer.Status(rawValue: statusNumber.intValue) {
-            
-            switch status {
-            case .readyToPlay:
-                print("Player is ready to play")
-                // Handle player ready to play
-            case .failed:
-                print("Player failed")
-                // Handle failure
-            case .unknown:
-                print("Player status unknown")
-                // Handle unknown status
-            @unknown default:
-                print("Encountered an unknown player status")
-                // Handle any future cases
+    override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
+        if keyPath == "status" {
+            if let playerItem = object as? AVPlayerItem {
+                switch playerItem.status {
+                case .readyToPlay:
+                    // Player item is ready. You might choose to play() here or update UI.
+                    break
+                case .failed:
+                    // Handle failure
+                    break
+                case .unknown:
+                    // Handle unknown state
+                    break
+                @unknown default:
+                    break
+                }
             }
-        } else {
-            super.observeValue(forKeyPath: keyPath, of: object, change: change, context: context)
         }
     }
     
-    func transitionToReadyStateWithoutAutoplay() {
-        print("🔄 Transitioning to ReadyState without auto-play.")
-
-        if !(currentState is ReadyState) {
-            self.currentState = ReadyState(mediaPlayer: self)
-            print("✅ Transitioned to ReadyState. Awaiting user action to play.")
-        } else {
-            print("✅ Already in ReadyState. Awaiting user action.")
+    func notifyPlaybackStateChanged() {
+        Task {
+            await delegate?.mediaPlayerDidChangeState(isPlaying: self.player.isPlaying)
         }
     }
-
-    /// Transitions the media player to the `ReadyState`, indicating it's ready to play the selected media
-        /// but does not start playing automatically.
-        func transitionToReadyState() {
-            // Transition to `ReadyState` without starting playback automatically.
-            transitionToState(ReadyState.self)
-            print("MediaPlayer transitioned to ReadyState, awaiting user action.")
-        }
     
     func stop() {
             // Pause the player
@@ -133,9 +116,6 @@ class MediaPlayer: NSObject {
 
             // Reset or clear the current player item if needed
             player.replaceCurrentItem(with: nil)
-
-            // Update the media player's state to reflect that it's stopped
-            transitionToState(StoppedState.self)
 
             // Notify the delegate or update any relevant properties to reflect the change in playback state
             DispatchQueue.main.async {
@@ -263,18 +243,15 @@ class MediaPlayer: NSObject {
     }
     
     func pause() {
-        DispatchQueue.main.async {
-            // This check relies on the AVPlayer's rate to determine if it's playing.
-            if self.player.rate != 0 {
-                self.player.pause()
-                // Transition to PausedState, ensuring the currentState is updated accurately.
-                self.transitionToState(PausedState.self)
-                print("Playback paused.")
-            } else {
-                print("Attempted to pause, but player is not currently playing.")
+            guard player.isPlaying else {
+                print("Playback is already paused.")
+                return
             }
+
+            player.pause()
+            print("Playback paused manually.")
+            notifyPlaybackStateChanged()
         }
-    }
     
     func play(url: URL? = nil) {
         if let url = url {
@@ -292,49 +269,10 @@ class MediaPlayer: NSObject {
         self.player.replaceCurrentItem(with: playerItem)
         self.currentMediaURL = url
 
-        if autoPlay {
-            // Transition to PlayingState and start playback only if autoPlay is true
-            transitionToState(PlayingState.self)
-            (currentState as? PlayingState)?.startPlaybackIfNeeded()
-        } else {
-            // Transition to a state that indicates readiness to play, without starting playback
-            // E.g., ReadyState, which indicates the player is ready and waiting for a play command
-            transitionToState(ReadyState.self)
-        }
     }
     
     private func resumeCurrentEpisodePlayback() {
-        // Resume playback only if the current state allows it, such as PausedState or ReadyState
-        if currentState is PausedState || currentState is ReadyState {
-            transitionToState(PlayingState.self)
-            (currentState as? PlayingState)?.startPlaybackIfNeeded()
-        } else if !(currentState is PlayingState) {
-            // If the player is neither playing nor paused/ready, attempt to start playback of the current item
-            // This might be necessary if, for example, the app is in StoppedState but a current episode is loaded
-            transitionToState(PlayingState.self)
-            (currentState as? PlayingState)?.startPlaybackIfNeeded()
-        }
-    }
-    
-    // MARK:func transitionToState
-    func transitionToState(_ newState: MediaPlayerState.Type, forcePlay: Bool = false) {
-        guard type(of: currentState) != newState else {
-            print("✅ Already in the target state (\(newState)). No transition necessary.")
-            return
-        }
-
-        print("🔄 Transitioning to state: \(newState)")
-        currentState = newState.init(mediaPlayer: self)
-        print("✅ Transitioned to new state: \(newState)")
-
-        // Execute actions based on the specific state
-        if newState == PlayingState.self && forcePlay {
-            // Only start playback if explicitly requested
-            play()
-        } else {
-            // For ReadyState, ensure the player is prepared but not playing
-            print("🔄 Player is in ReadyState, ready for user command.")
-        }
+        
     }
 
     private func performActionsForPlaying() {
@@ -352,19 +290,17 @@ class MediaPlayer: NSObject {
         }
     }
     
-    func manualPlay() async {
-            guard !isPlaying else {
+    func manualPlay() {
+            guard !player.isPlaying else {
                 print("Playback is already in progress.")
                 return
             }
 
-            self.userDidRequestPlayback = true
-
-            // Directly invoking play
-            self.player.play()
+            player.play()
             print("Playback started manually.")
+            notifyPlaybackStateChanged()
         }
-
+    
     func prepareForNewEpisode(_ url: URL, autoPlay: Bool) {
         print("Preparing episode with URL: \(url). AutoPlay is set to: \(autoPlay).")
 
@@ -390,12 +326,11 @@ class MediaPlayer: NSObject {
                     if self.shouldAutoPlay {
                         print("Auto-play enabled, starting playback.")
                         Task {
-                            await self.manualPlay()
+                            self.manualPlay()
                         }
                     } else {
                         print("Episode is ready. Auto-play is disabled, waiting for user action.")
                     }
-                    self.transitionToState(ReadyState.self)
                 }
             }
         }

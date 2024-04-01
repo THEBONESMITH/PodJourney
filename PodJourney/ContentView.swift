@@ -537,7 +537,7 @@ struct ContentView: View {
                 print("Tap recognized, episode selected: \(episode.title)")
                 self.selectedEpisode = episode
                 Task {
-                    await viewModel.selectEpisode(episode)
+                    viewModel.selectEpisode(episode)
                 }
             }
             .simultaneousGesture(
@@ -609,9 +609,7 @@ struct ContentView: View {
                 .disabled(viewModel.currentlyPlaying == nil) // Disable the button if no episode is selected
                 
                 Button(action: {
-                    Task {
-                        await viewModel.togglePlayPause()
-                    }
+                    viewModel.togglePlayPause()
                 }) {
                     Image(systemName: viewModel.isPlaying ? "pause.fill" : "play.fill")
                         .resizable()
@@ -693,6 +691,7 @@ struct ContentView: View {
 
         var body: some View {
             Button("Play Episode") {
+                print("Play Episode button pressed for episode: \(selectedEpisode?.title ?? "N/A")")
                 if let episode = selectedEpisode {
                     Task {
                         await viewModel.prepareAndPlayEpisode(episode, autoPlay: false)
