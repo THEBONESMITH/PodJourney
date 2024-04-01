@@ -71,6 +71,7 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     @Published var selectedEpisodeTitle: String = ""
     @Published var isPlayButtonEnabled: Bool = false
     @Published var currentlyPlayingEpisode: Episode?
+    @Published var isEpisodeLoaded = false
     private var subscriptions = Set<AnyCancellable>()
     private var playerItemObserver: Any?
     private var playbackTimeObserverToken: AVPlayerItem?
@@ -170,7 +171,6 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     }
     
     func togglePlayPause() {
-        // Directly use `player` if it's non-optional
         if player.rate == 0 {
             player.play()
             isPlaying = true
@@ -583,14 +583,16 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     
     // MARK: func selectEpisode
     func selectEpisode(_ episode: Episode) {
-            guard let url = URL(string: episode.link) else {
-                print("Invalid URL for episode: \(episode.title)")
-                return
-            }
-            let playerItem = AVPlayerItem(url: url)
-        player.replaceCurrentItem(with: playerItem)
-            currentlyPlaying = episode
+        guard let url = URL(string: episode.link) else {
+            print("Invalid URL for episode: \(episode.title)")
+            return
         }
+        let playerItem = AVPlayerItem(url: url)
+        player.replaceCurrentItem(with: playerItem)
+        // Note: Do not automatically call play() here.
+        print("Episode prepared for playback: \(episode.title)")
+        isEpisodeLoaded = true
+    }
 
     func playSelectedEpisode() {
         if let _ = currentlyPlaying {

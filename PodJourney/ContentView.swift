@@ -606,7 +606,7 @@ struct ContentView: View {
                         .frame(width: 28, height: 28)
                 }
                 .padding()
-                .disabled(viewModel.currentlyPlaying == nil) // Disable the button if no episode is selected
+                .disabled(!viewModel.isEpisodeLoaded) // Disable the button if no episode is selected
                 
                 Button(action: {
                     viewModel.togglePlayPause()
@@ -617,7 +617,7 @@ struct ContentView: View {
                         .frame(width: 28, height: 28)
                 }
                 .padding()
-                .disabled(viewModel.currentlyPlaying == nil) // Again, disable if no episode is selected
+                .disabled(!viewModel.isEpisodeLoaded) // Disable if no episode is loaded and ready to play
                 
                 Button(action: {
                     viewModel.skipForward(seconds: 30)
@@ -628,7 +628,7 @@ struct ContentView: View {
                         .frame(width: 28, height: 28)
                 }
                 .padding()
-                .disabled(viewModel.currentlyPlaying == nil) // And disable if no episode is selected
+                .disabled(!viewModel.isEpisodeLoaded) // And disable if no episode is selected
             }
             .frame(maxWidth: .infinity)
             .buttonStyle(PlainButtonStyle())
