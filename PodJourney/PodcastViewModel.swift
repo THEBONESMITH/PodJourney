@@ -520,10 +520,23 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     
     @MainActor
     func seekToProgress(_ progress: Double) async {
-        print("Seeking to progress: \(progress)")
-        
-        // Directly calling a synchronous method without actual awaiting, but in an async context
-        mediaPlayer.seekToProgress(progress)
+        guard let currentItem = player.currentItem else {
+            print("No current item to seek.")
+            return
+        }
+
+        let duration = currentItem.duration.seconds
+        if duration.isFinite {
+            let seekTimeSeconds = progress * duration
+            let seekTime = CMTime(seconds: seekTimeSeconds, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+            player.seek(to: seekTime) { _ in
+                print("Seeked to \(seekTimeSeconds) seconds")
+                // Optionally, resume playback if it was paused for seeking
+                if self.isPlaying {
+                    self.player.play()
+                }
+            }
+        }
     }
     
     func updateCurrentTimeDisplay(time: CMTime) {
@@ -542,9 +555,14 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         let interval = CMTime(seconds: 1, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         mediaPlayer.player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
             
+            let currentSeconds = CMTimeGetSeconds(time)
+            let totalSeconds = CMTimeGetSeconds(self?.mediaPlayer.player.currentItem?.duration ?? CMTime.zero)
+            let progress = currentSeconds / totalSeconds
+    
             Task { [weak self] in
                 guard let strongSelf = self else { return }
                 await strongSelf.updateCurrentTimeDisplay(time: time)
+                print("Updating progress: \(progress)")
             }
         }
     }
