@@ -109,6 +109,14 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
             print("PodcastViewModel initialized with direct AVPlayer control.")
         }
     
+    // When an episode is selected, prepare it but wait for explicit play command.
+    func episodeSelected(_ episode: Episode) {
+        selectEpisode(episode)
+        // Reset any flag that might indicate playback should start automatically.
+        isEpisodeLoaded = true // This indicates an episode is ready but not automatically played.
+        print("👆 Episode selected: \(episode.title). Tap play to start.")
+    }
+    
     func mediaPlayerDidChangeState(isPlaying: Bool) {
             // Update your UI accordingly
             print("Media player state changed: \(isPlaying)")
@@ -148,9 +156,12 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         }
     
     private func preparePlayer(with url: URL) {
-            let playerItem = AVPlayerItem(url: url)
+        let playerItem = AVPlayerItem(url: url)
         player.replaceCurrentItem(with: playerItem)
-        }
+        player.play() // Start playback only after loading the new episode
+        isPlaying = true
+        print("▶️ Episode loaded and playback started: \(url.lastPathComponent)")
+    }
     
     @MainActor
         func prepareAndPlayEpisode(_ episode: Episode, autoPlay: Bool) async {
@@ -171,12 +182,41 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     }
     
     func togglePlayPause() {
-        if player.rate == 0 {
-            player.play()
-            isPlaying = true
+        guard let episode = currentlyPlaying else {
+            print("⚠️ No episode selected.")
+            return
+        }
+
+        // Check if the current episode URL matches the selected episode URL
+        if let currentEpisodeURL = player.currentItem?.asset as? AVURLAsset, currentEpisodeURL.url == episode.mediaURL {
+            // The selected episode is already loaded, toggle play/pause based on current state
+            if player.rate == 0 {
+                player.play()
+                isPlaying = true
+                print("▶️ Playback resumed for \(episode.title).")
+            } else {
+                player.pause()
+                isPlaying = false
+                print("⏸ Playback paused for \(episode.title).")
+            }
         } else {
-            player.pause()
-            isPlaying = false
+            // Here, we handle the case where a new episode is selected, and the user hits the pause button.
+            // The expected behavior is to pause the currently playing episode without auto-playing the new one.
+            
+            // First, check if something is currently playing.
+            if player.rate != 0 {
+                // If so, pause the current playback and don't start the new episode.
+                player.pause()
+                isPlaying = false
+                print("⏸ Playback paused for the currently playing episode.")
+            } else {
+                // If nothing is playing, prepare the new episode for playback (but do not play it automatically).
+                // This allows the user to play the new episode with a subsequent play action.
+                preparePlayer(with: episode.mediaURL)
+                print("🔄 Episode \(episode.title) is loaded and ready to play. Hit play when ready.")
+                // Note: You might decide not to auto-load the new episode here, based on your app's behavior.
+                // In such a case, simply inform the user that the episode is ready to be played.
+            }
         }
     }
         
@@ -583,15 +623,12 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     
     // MARK: func selectEpisode
     func selectEpisode(_ episode: Episode) {
-        guard let url = URL(string: episode.link) else {
-            print("Invalid URL for episode: \(episode.title)")
-            return
-        }
-        let playerItem = AVPlayerItem(url: url)
-        player.replaceCurrentItem(with: playerItem)
-        // Note: Do not automatically call play() here.
-        print("Episode prepared for playback: \(episode.title)")
-        isEpisodeLoaded = true
+        currentlyPlaying = episode
+        isEpisodeLoaded = true // Signal that an episode is loaded and ready
+        print("👆 Episode selected: \(episode.title). Tap play to start.")
+
+        // Optionally, remove player item preparation from here if it's causing issues
+        // and prepare it in the play method if not already prepared.
     }
 
     func playSelectedEpisode() {
