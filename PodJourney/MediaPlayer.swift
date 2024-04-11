@@ -49,6 +49,8 @@ protocol MediaPlayerDelegate: AnyObject {
     func playbackProgressDidChange(to progress: Double) async
     func mediaPlayerRequiresTimeFormat(seconds: Double) -> String
     func mediaPlayerPlaybackStateDidChange(isPlaying: Bool)
+    func mediaPlayerDidPause()
+    func mediaPlayerProgressDidUpdate(to progress: Double)  
     // Add other necessary methods here
 }
 
