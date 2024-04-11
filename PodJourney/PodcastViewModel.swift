@@ -196,28 +196,29 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
             }
         }
     
-    private func preparePlayer(with url: URL) {
-        let playerItem = AVPlayerItem(url: url)
-        player.replaceCurrentItem(with: playerItem)
+    @MainActor // Use this if only specific functions need to be on the main thread
+        private func preparePlayer(with url: URL) {
+            let playerItem = AVPlayerItem(url: url)
+            player.replaceCurrentItem(with: playerItem)
 
-        playerItemObserver?.invalidate()
+            playerItemObserver?.invalidate()
 
-        playerItemObserver = playerItem.observe(\.status, options: [.new, .old]) { [weak self] item, change in
-            DispatchQueue.main.async {
-                guard let strongSelf = self else { return }
-                if item.status == .readyToPlay {
-                    print("🟢 Player item is now ready to play. Duration: \(item.duration.seconds) seconds")
-                    strongSelf.setupPeriodicTimeObserver()
-                    strongSelf.totalDuration = item.duration.seconds
-                    strongSelf.updatePlaybackUI()
+            playerItemObserver = playerItem.observe(\.status, options: [.new, .old]) { [weak self] item, change in
+                DispatchQueue.main.async { [weak self] in
+                    guard let strongSelf = self else { return }
+                    if item.status == .readyToPlay {
+                        print("🟢 Player item is now ready to play. Duration: \(item.duration.seconds) seconds")
+                        strongSelf.setupPeriodicTimeObserver()
+                        strongSelf.totalDuration = item.duration.seconds
+                        strongSelf.updatePlaybackUI()
+                    }
                 }
             }
-        }
 
-        player.play()
-        isPlaying = true
-        print("▶️ Episode loaded and playback started.")
-    }
+            player.play()
+            isPlaying = true
+            print("▶️ Episode loaded and playback started.")
+        }
     
     func prepareAndPlayEpisode(_ episode: Episode, autoPlay: Bool) async {
         // Ensure this method prepares the player and starts playback if `autoPlay` is true.

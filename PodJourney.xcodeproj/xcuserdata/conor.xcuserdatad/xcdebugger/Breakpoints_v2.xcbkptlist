@@ -92,8 +92,8 @@
             filePath = "PodJourney/PodcastViewModel.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "250"
-            endingLineNumber = "250"
+            startingLineNumber = "251"
+            endingLineNumber = "251"
             landmarkName = "togglePlayPause()"
             landmarkType = "7">
          </BreakpointContent>
@@ -395,8 +395,8 @@
             filePath = "PodJourney/PodcastViewModel.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "359"
-            endingLineNumber = "359"
+            startingLineNumber = "360"
+            endingLineNumber = "360"
             landmarkName = "podcastTitle"
             landmarkType = "24">
             <Locations>
@@ -443,8 +443,8 @@
             filePath = "PodJourney/PodcastViewModel.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "342"
-            endingLineNumber = "342"
+            startingLineNumber = "343"
+            endingLineNumber = "343"
             landmarkName = "_podcastImageUrl"
             landmarkType = "24">
             <Locations>
@@ -704,8 +704,8 @@
             filePath = "PodJourney/PodcastViewModel.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "729"
-            endingLineNumber = "729"
+            startingLineNumber = "730"
+            endingLineNumber = "730"
             landmarkName = "PodcastViewModel"
             landmarkType = "3">
          </BreakpointContent>
@@ -720,8 +720,8 @@
             filePath = "PodJourney/PodcastViewModel.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "737"
-            endingLineNumber = "737"
+            startingLineNumber = "738"
+            endingLineNumber = "738"
             landmarkName = "playSelectedEpisode()"
             landmarkType = "7">
             <Locations>
@@ -908,8 +908,8 @@
             filePath = "PodJourney/PodcastViewModel.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "326"
-            endingLineNumber = "326"
+            startingLineNumber = "327"
+            endingLineNumber = "327"
             landmarkName = "togglePlayPauseForEpisode(_:)"
             landmarkType = "7">
             <Locations>
@@ -1228,6 +1228,21 @@
                   endingLineNumber = "326"
                   offsetFromSymbolStart = "1110">
                </Location>
+               <Location
+                  uuid = "A2810371-DC2F-450A-84A5-AD8D80F4E949 - f3216758c1cb151a"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(1) suspend resume partial function for PodJourney.PodcastViewModel.togglePlayPauseForEpisode(Swift.Optional&lt;PodJourney.Episode&gt;) async -&gt; ()"
+                  moduleName = "PodJourney"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/conor/Documents/PodJourney/PodJourney/PodcastViewModel.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "327"
+                  endingLineNumber = "327"
+                  offsetFromSymbolStart = "1110">
+               </Location>
             </Locations>
          </BreakpointContent>
       </BreakpointProxy>
@@ -1321,8 +1336,8 @@
             filePath = "PodJourney/PodcastViewModel.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "287"
-            endingLineNumber = "287"
+            startingLineNumber = "288"
+            endingLineNumber = "288"
             landmarkName = "playEpisode(episode:)"
             landmarkType = "7">
             <Locations>
@@ -1611,53 +1626,20 @@
                   endingLineNumber = "287"
                   offsetFromSymbolStart = "1371">
                </Location>
-            </Locations>
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "DFBFA868-6A4B-42EF-AF23-662F33460CDC"
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "PodJourney/PodcastViewModel.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "200"
-            endingLineNumber = "200"
-            landmarkName = "preparePlayer(with:)"
-            landmarkType = "7">
-            <Locations>
                <Location
-                  uuid = "DFBFA868-6A4B-42EF-AF23-662F33460CDC - 1faf4d4cb6b368ea"
+                  uuid = "6C515512-6AC5-4D83-919F-5E8E3221E6DA - 73e5302ecb21932f"
                   shouldBeEnabled = "Yes"
                   ignoreCount = "0"
                   continueAfterRunningActions = "No"
-                  symbolName = "PodJourney.PodcastViewModel.preparePlayer(with: Foundation.URL) -&gt; ()"
+                  symbolName = "(1) suspend resume partial function for PodJourney.PodcastViewModel.playEpisode(episode: PodJourney.Episode) async -&gt; ()"
                   moduleName = "PodJourney"
                   usesParentBreakpointCondition = "Yes"
                   urlString = "file:///Users/conor/Documents/PodJourney/PodJourney/PodcastViewModel.swift"
                   startingColumnNumber = "9223372036854775807"
                   endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "190"
-                  endingLineNumber = "190"
-                  offsetFromSymbolStart = "160">
-               </Location>
-               <Location
-                  uuid = "DFBFA868-6A4B-42EF-AF23-662F33460CDC - 1faf4d4cb6b368ea"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "PodJourney.PodcastViewModel.preparePlayer(with: Foundation.URL) -&gt; ()"
-                  moduleName = "PodJourney"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/conor/Documents/PodJourney/PodJourney/PodcastViewModel.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "190"
-                  endingLineNumber = "190"
-                  offsetFromSymbolStart = "143">
+                  startingLineNumber = "288"
+                  endingLineNumber = "288"
+                  offsetFromSymbolStart = "1371">
                </Location>
             </Locations>
          </BreakpointContent>
@@ -1672,8 +1654,8 @@
             filePath = "PodJourney/PodcastViewModel.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "561"
-            endingLineNumber = "561"
+            startingLineNumber = "562"
+            endingLineNumber = "562"
             landmarkName = "updateUIForEpisodeSelection(episode:)"
             landmarkType = "7">
             <Locations>
@@ -1842,6 +1824,21 @@
                   endingLineNumber = "562"
                   offsetFromSymbolStart = "174">
                </Location>
+               <Location
+                  uuid = "FED384F0-AEB0-4348-B509-FA4740CCB5C3 - 9ae99dc6092539cd"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "(1) suspend resume partial function for PodJourney.PodcastViewModel.updateUIForEpisodeSelection(episode: PodJourney.Episode) async -&gt; ()"
+                  moduleName = "PodJourney"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/conor/Documents/PodJourney/PodJourney/PodcastViewModel.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "563"
+                  endingLineNumber = "563"
+                  offsetFromSymbolStart = "174">
+               </Location>
             </Locations>
          </BreakpointContent>
       </BreakpointProxy>
@@ -1855,8 +1852,8 @@
             filePath = "PodJourney/PodcastViewModel.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "243"
-            endingLineNumber = "243"
+            startingLineNumber = "244"
+            endingLineNumber = "244"
             landmarkName = "updateUIPlaybackProgress()"
             landmarkType = "7">
             <Locations>
@@ -1963,6 +1960,36 @@
                   endingColumnNumber = "9223372036854775807"
                   startingLineNumber = "243"
                   endingLineNumber = "243"
+                  offsetFromSymbolStart = "38">
+               </Location>
+               <Location
+                  uuid = "A7A6588C-0F2D-44F8-971C-967EF3C57A42 - 64e44f0d1ce6fa3a"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "PodJourney.PodcastViewModel.updateUIPlaybackProgress() -&gt; ()"
+                  moduleName = "PodJourney"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/conor/Documents/PodJourney/PodJourney/PodcastViewModel.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "244"
+                  endingLineNumber = "244"
+                  offsetFromSymbolStart = "286">
+               </Location>
+               <Location
+                  uuid = "A7A6588C-0F2D-44F8-971C-967EF3C57A42 - 6dc557e7d132be02"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "closure #1 @Swift.MainActor @Sendable () -&gt; () in PodJourney.PodcastViewModel.updateUIPlaybackProgress() -&gt; ()"
+                  moduleName = "PodJourney"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/conor/Documents/PodJourney/PodJourney/PodcastViewModel.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "244"
+                  endingLineNumber = "244"
                   offsetFromSymbolStart = "38">
                </Location>
             </Locations>
