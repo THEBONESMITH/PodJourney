@@ -13,6 +13,13 @@ extension MediaPlayer {
         return player.rate != 0
     }
     
+    func adjustVolume(to newVolume: Float) {
+            print("Setting player volume from \(player.volume) to \(newVolume)")
+            self.volume = newVolume  // This will trigger didSet that adjusts the player's volume
+            assert(player.volume == newVolume, "Failed to set player volume")
+            print("Player volume now \(player.volume)")
+        }
+    
     func togglePlayPause() async {
             // Using isPlaying to check if the player is currently playing
             if isPlaying {
@@ -55,8 +62,9 @@ protocol MediaPlayerDelegate: AnyObject {
     // Add other necessary methods here
 }
 
-class MediaPlayer: NSObject {
+class MediaPlayer: NSObject, ObservableObject {
     var player: AVPlayer = AVPlayer()
+    // var player = AVPlayer()
     var currentMediaURL: URL?
     weak var delegate: MediaPlayerDelegate?
     var currentEpisode: Episode?
@@ -75,9 +83,17 @@ class MediaPlayer: NSObject {
     private var playerTimeControlStatusObserver: NSKeyValueObservation?
     private var hasAddedObserver: Bool = false
     private var timeObserverToken: Any?
+    @Published var volume: Float {
+            didSet {
+                player.volume = volume
+            }
+        }
     
     override init() {
+        self.volume = 0.25 // Initialize volume before calling super.init()
         super.init()
+        player.volume = volume // Set the player's volume to the initial value
+        player = AVPlayer()
         setupPlayer()
         player.addObserver(self, forKeyPath: "status", options: [.new, .old], context: nil)
         addPeriodicTimeObserver()
@@ -176,11 +192,23 @@ class MediaPlayer: NSObject {
         }
     
     func setupPlayer() {
-        print("setupPlayer called")
-        player = AVPlayer()
-        
-        // Continue setup...
-    }
+            player = AVPlayer()
+            
+            // Add an observer for AVPlayerItemDidPlayToEndTime
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(playerItemDidReachEnd(notification:)),
+                name: .AVPlayerItemDidPlayToEndTime,
+                object: player.currentItem
+            )
+            
+            // Additional setup logic
+        }
+    
+    @objc func playerItemDidReachEnd(notification: Notification) {
+            print("Playback reached the end of the file.")
+            // Handle the event, such as restarting playback or updating the UI
+        }
     
     func skipForward(seconds: Double) {
         let currentTime = player.currentTime() // 'player' is non-optional, so direct access is fine

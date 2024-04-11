@@ -39,6 +39,7 @@ struct ContentView: View {
     // This needs to be an @State or similar property to be mutable
     @State private var player: AVAudioPlayer?
     @State private var volume: Double = 0.25 // Default volume level
+    @ObservedObject var mediaPlayer = MediaPlayer()
     @State private var showingSearch = false
     @State private var showingEpisodeDetail = false
     @State private var selectedEpisode: Episode? // Holds the selected episode for details
@@ -212,16 +213,15 @@ struct ContentView: View {
                         Spacer()
                         
                         VolumeSlider(volume: $volume, onVolumeChange: { newVolume in
-                                    viewModel.adjustVolume(to: Float(newVolume))
-                                })
-                                .frame(width: 100)
-                                .padding(.top, 20)
-                                .offset(x: -10, y: -8)
-                                    .onAppear {
-                                        // Adjust the actual volume to match the UI's default when ContentView appears
-                                        viewModel.adjustVolume(to: Float(volume))
-                                    }
-                            }
+                            viewModel.adjustVolume(to: Float(newVolume))
+                        })
+                        .frame(width: 100)
+                        .padding(.top, 20)
+                        .offset(x: -10, y: -8)
+                        .onAppear {
+                            viewModel.adjustVolume(to: Float(volume))
+                        }
+                    }
                     
                     HStack {
                         controlButtonsView
@@ -254,6 +254,10 @@ struct ContentView: View {
             }
         }
     }
+    
+    private func handleVolumeChange(newVolume: Double) {
+            viewModel.adjustVolume(to: Float(newVolume))
+        }
     
     struct CustomDivider: View {
         var color: Color = .gray

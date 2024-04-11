@@ -434,11 +434,6 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         }
     }
     
-    func adjustVolume(to newVolume: Float) {
-        mediaPlayer.player.volume = newVolume
-        print("Volume adjusted to \(newVolume)")
-    }
-    
     @MainActor
     func userDidEndInteracting(progress: Double) async {
         // Assuming seekToProgress is an async function
@@ -650,7 +645,6 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
 
             Task { @MainActor in  // Ensure execution on the main actor
                 self.updatePlaybackUI()
-                print("Updating UI - Current Playback Progress: \(self.playbackProgress)")
             }
         }
     }
@@ -693,9 +687,11 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     }
     
     private func setupMediaPlayer() {
-            self.mediaPlayer = MediaPlayer()
-        self.mediaPlayer.delegate = self // Correctly set delegate here
-            // Other setup or configuration
+            // Configure MediaPlayer volume, audio session, etc.
+        mediaPlayer.player.volume = 0.25
+            print("MediaPlayer volume adjusted and configured.")
+            
+            // Additional MediaPlayer setup if required
         }
     
     private func setupPlaybackProgressSync() {
@@ -785,7 +781,11 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
 }
 
 extension PodcastViewModel {
-
+    func adjustVolume(to newVolume: Float) {
+            player.volume = newVolume
+            print("Volume adjusted to \(newVolume)")
+        }
+    
     func mediaPlayerDidStartPlayback() {
         // Implement according to your app's needs
         print("Media player started playback.")
