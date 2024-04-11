@@ -75,7 +75,6 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     @Published var currentlyPlayingEpisode: Episode?
     @Published var isEpisodeLoaded = false
     private var subscriptions = Set<AnyCancellable>()
-    private var playerItemObserver: Any?
     private var playbackTimeObserverToken: AVPlayerItem?
     private let episodeSelectionSubject = PassthroughSubject<Episode, Never>()
     private let debounceInterval = 0.1
@@ -84,6 +83,8 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     private var lastUpdateTime: Date?
     private var timeFormatCache: [Double: String] = [:]
     private var searchCancellable: AnyCancellable?
+    private var playerItemStatusObserver: NSKeyValueObservation?
+    private var playerItemObserver: NSKeyValueObservation?
     weak var delegate: MediaPlayerDelegate?
     var timeObserverToken: Any?
     var shouldAutoPlay = false
@@ -111,12 +112,41 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
             print("PodcastViewModel initialized with direct AVPlayer control.")
         }
     
+    // Update UI based on the current playback time and total duration
+    func updatePlaybackUI() {
+        DispatchQueue.main.async {
+            print("updatePlaybackUI called")
+            guard let duration = self.mediaPlayer.player.currentItem?.duration.seconds, duration.isFinite else {
+                print("Duration unavailable or infinite, cannot update UI.")
+                return
+            }
+
+            let currentTime = self.mediaPlayer.player.currentTime().seconds ?? 0
+            let remainingTime = duration - currentTime
+            
+            self.currentTimeDisplay = self.formatTime(seconds: currentTime)
+            self.remainingTimeDisplay = self.formatTime(seconds: remainingTime)
+
+            print("UI Updated - Current Time: \(self.currentTimeDisplay), Remaining Time: \(self.remainingTimeDisplay)")
+        }
+    }
+
+    func mediaPlayerProgressDidChange(currentTime: Double, duration: Double) {
+        DispatchQueue.main.async {
+            // Update your UI components here based on currentTime and duration.
+            // For example, updating a progress bar's value or displaying the current time and duration in labels.
+            
+            // If updatePlaybackUI is designed to refresh the entire playback UI independently,
+            // you can still call it without arguments for a full UI refresh.
+            self.updatePlaybackUI()
+        }
+    }
+    
     // When an episode is selected, prepare it but wait for explicit play command.
     func episodeSelected(_ episode: Episode) {
         selectEpisode(episode)
         // Reset any flag that might indicate playback should start automatically.
         isEpisodeLoaded = true // This indicates an episode is ready but not automatically played.
-        print("👆 Episode selected: \(episode.title). Tap play to start.")
     }
     
     func mediaPlayerDidChangeState(isPlaying: Bool) {
@@ -160,30 +190,45 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     private func preparePlayer(with url: URL) {
         let playerItem = AVPlayerItem(url: url)
         player.replaceCurrentItem(with: playerItem)
-        // Wait for the playerItem to become ready to play to get the accurate duration
+
+        // Invalidate the previous observer to avoid duplicates.
+        playerItemObserver?.invalidate()
+
+        // Observe the playerItem's status.
         playerItemObserver = playerItem.observe(\.status, options: [.new]) { [weak self] (item, _) in
             guard let strongSelf = self else { return }
             DispatchQueue.main.async {
-                // Now using strongSelf to refer to self within the closure
-                strongSelf.totalDuration = item.duration.seconds
-                strongSelf.updateTimeDisplay()
+                if item.status == .readyToPlay {
+                    // Now using strongSelf to refer to self within the closure
+                    strongSelf.totalDuration = item.duration.seconds
+                    strongSelf.updateTimeDisplay()
+                }
             }
         }
+
         player.play()
         isPlaying = true
         print("▶️ Episode loaded and playback started.")
     }
     
-    @MainActor
-        func prepareAndPlayEpisode(_ episode: Episode, autoPlay: Bool) async {
-            guard let episodeURL = URL(string: episode.link) else {
-                print("Invalid URL for episode: \(episode.title)")
-                return
-            }
-
-            print("Preparing episode: \(episode.title) for playback. AutoPlay flag is set to: \(autoPlay).")
-            mediaPlayer.prepareForNewEpisode(episodeURL, autoPlay: autoPlay)
+    func prepareAndPlayEpisode(_ episode: Episode, autoPlay: Bool) async {
+        // Ensure this method prepares the player and starts playback if `autoPlay` is true.
+        // After preparing the player, call setupPeriodicTimeObserver to start the time updates.
+        // Example:
+        guard let episodeURL = URL(string: episode.link) else {
+            print("Invalid URL for episode: \(episode.title)")
+            return
         }
+        
+        let playerItem = AVPlayerItem(url: episodeURL)
+        player.replaceCurrentItem(with: playerItem)
+        
+        if autoPlay {
+            player.play()
+            setupPeriodicTimeObserver() // Start observing time after playback starts
+            isPlaying = true
+        }
+    }
     
     private func updateUIPlaybackProgress() {
         let newProgress = mediaPlayer.calculateCurrentProgress()
@@ -204,7 +249,6 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
             if player.rate == 0 {
                 player.play()
                 isPlaying = true
-                print("▶️ Playback resumed for \(episode.title).")
             } else {
                 player.pause()
                 isPlaying = false
@@ -224,19 +268,23 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
                 // If nothing is playing, prepare the new episode for playback (but do not play it automatically).
                 // This allows the user to play the new episode with a subsequent play action.
                 preparePlayer(with: episode.mediaURL)
-                print("🔄 Episode \(episode.title) is loaded and ready to play. Hit play when ready.")
                 // Note: You might decide not to auto-load the new episode here, based on your app's behavior.
                 // In such a case, simply inform the user that the episode is ready to be played.
             }
         }
     }
         
-        func playEpisode(with url: URL) {
-            let item = AVPlayerItem(url: url)
-            player.replaceCurrentItem(with: item)
-            player.play()
-            print("Playing episode: \(url.lastPathComponent)")
+    func playEpisode(episode: Episode) async {
+        guard let url = URL(string: episode.link) else {
+            print("❌ Invalid episode URL")
+            return
         }
+        
+        print("Starting playback for episode: \(episode.title) at URL: \(url)")
+        mediaPlayer.play(url: url)
+        isPlaying = true
+        print("Playback initiated.")
+    }
 
     func skipForward(seconds: Double) {
         let currentTime = player.currentTime()
@@ -443,14 +491,6 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         remainingTimeDisplay = formatTime(seconds: remainingSeconds)
     }
     
-    func playbackProgressDidChange(to progress: Double) {
-        DispatchQueue.main.async {
-            // Assuming totalDuration is already set correctly when the episode is loaded
-            self.currentProgress = progress * self.totalDuration
-            // This will update the progress bar's fill based on the current progress
-        }
-    }
-    
     func resetPlaybackProgress() {
         // Implementation to reset playback progress
         DispatchQueue.main.async {
@@ -578,25 +618,10 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     }
     
     func setupPeriodicTimeObserver() {
-        // Remove previous observer if exists
-        if let timeObserverToken = timeObserverToken {
-            player.removeTimeObserver(timeObserverToken)
-            self.timeObserverToken = nil
-        }
-        
         let interval = CMTime(seconds: 1, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
-        timeObserverToken = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
-            guard let strongSelf = self else { return }
-
-            let currentSeconds = time.seconds
-            // Use main queue explicitly for main actor isolated properties
-            DispatchQueue.main.async {
-                let totalSeconds = strongSelf.totalDuration
-                let remainingSeconds = max(totalSeconds - currentSeconds, 0)
-                
-                strongSelf.currentTimeDisplay = strongSelf.formatTime(seconds: currentSeconds)
-                strongSelf.remainingTimeDisplay = strongSelf.formatTime(seconds: remainingSeconds)
-            }
+        mediaPlayer.player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
+            print("Periodic time observer triggered: \(time.seconds)") // Add this line
+            self?.updateCurrentTimeDisplay(time: time)
         }
     }
     
@@ -626,22 +651,10 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         let interval = CMTime(seconds: 1.0, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         mediaPlayer.player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
             guard let self = self else { return }
-                
-            Task { @MainActor in
-                guard let duration = self.mediaPlayer.player.currentItem?.duration.seconds,
-                      duration.isFinite && !duration.isNaN else {
-                    print("Invalid duration. Skipping time update.")
-                    return
-                }
-                    
-                let currentTime = time.seconds
-                let remainingTime = duration - currentTime
-                    
-                if currentTime.isFinite && !currentTime.isNaN && remainingTime.isFinite && !remainingTime.isNaN {
-                    self.currentTimeDisplay = self.formatTime(seconds: currentTime)
-                    self.remainingTimeDisplay = self.formatTime(seconds: remainingTime)
-                }
-            }
+            print("Time observer triggered: currentTime = \(time.seconds) seconds")
+            
+            // Now update the UI with the new time
+            self.updatePlaybackUI()
         }
     }
     
@@ -676,7 +689,6 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     func selectEpisode(_ episode: Episode) {
         currentlyPlaying = episode
         isEpisodeLoaded = true // Signal that an episode is loaded and ready
-        print("👆 Episode selected: \(episode.title). Tap play to start.")
 
         // Optionally, remove player item preparation from here if it's causing issues
         // and prepare it in the play method if not already prepared.
@@ -753,24 +765,22 @@ extension PodcastViewModel {
     }
 
     func mediaPlayerDidChangeState(isPlaying: Bool) async {
-        // Adjust your app's state based on whether the media player is playing
         DispatchQueue.main.async {
             self.isPlaying = isPlaying
+            print("Playback state changed: isPlaying = \(isPlaying)")
         }
     }
 
-    func updateTimeDisplay(currentTime: String, remainingTime: String) {
-        // Update your UI with the new time values
-        DispatchQueue.main.async {
-            self.currentTimeDisplay = currentTime
-            self.remainingTimeDisplay = remainingTime
+    nonisolated func updateTimeDisplay(currentTime: String, remainingTime: String) {
+            // Implement this method to update the UI with the current time and remaining time.
+            print("Current time: \(currentTime), Remaining time: \(remainingTime)")
         }
-    }
 
-    func playbackProgressDidChange(to progress: Double) async {
-        // Update playback progress in your UI
+    func playbackProgressDidChange(to progress: Double) {
         DispatchQueue.main.async {
-            self.playbackProgress = progress
+            // Assuming totalDuration is already set correctly when the episode is loaded
+            self.currentProgress = progress * self.totalDuration
+            // This will update the progress bar's fill based on the current progress
         }
     }
 

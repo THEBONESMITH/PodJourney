@@ -51,6 +51,7 @@ protocol MediaPlayerDelegate: AnyObject {
     func mediaPlayerPlaybackStateDidChange(isPlaying: Bool)
     func mediaPlayerDidPause()
     func mediaPlayerProgressDidUpdate(to progress: Double)  
+    func mediaPlayerProgressDidChange(currentTime: Double, duration: Double) async
     // Add other necessary methods here
 }
 
@@ -99,6 +100,51 @@ class MediaPlayer: NSObject {
                 @unknown default:
                     break
                 }
+            }
+        }
+    }
+    
+    private func addPeriodicTimeObserver() {
+        // Ensure previous observer is removed before adding a new one
+        if let timeObserverToken = timeObserverToken {
+            player.removeTimeObserver(timeObserverToken)
+        }
+
+        let interval = CMTime(seconds: 1, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+        timeObserverToken = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
+            guard let self = self, let duration = self.player.currentItem?.duration else { return }
+            let currentTime = CMTimeGetSeconds(time)
+            let totalDuration = CMTimeGetSeconds(duration)
+
+            // Switching to the @MainActor context before notifying the delegate about the progress change 🔄
+            Task { @MainActor in
+                await self.delegate?.mediaPlayerProgressDidChange(currentTime: currentTime, duration: totalDuration)
+            }
+        }
+    }
+    
+    private func cleanupObservers() {
+            player.removeObserver(self, forKeyPath: "rate")
+            if let timeObserverToken = timeObserverToken {
+                player.removeTimeObserver(timeObserverToken)
+            }
+        }
+    
+    func removePeriodicTimeObserver() {
+        if let timeObserverToken = timeObserverToken {
+            player.removeTimeObserver(timeObserverToken)
+            self.timeObserverToken = nil
+        }
+    }
+    
+    func updatePlaybackProgress() {
+        guard let currentItem = player.currentItem, !currentItem.duration.isIndefinite else { return }
+        let currentTime = CMTimeGetSeconds(player.currentTime())
+        let duration = CMTimeGetSeconds(currentItem.duration)
+        if duration > 0 {
+            // Use the updated delegate method signature
+            Task {
+                await delegate?.mediaPlayerProgressDidChange(currentTime: currentTime, duration: duration)
             }
         }
     }
@@ -191,31 +237,6 @@ class MediaPlayer: NSObject {
                 }
             }
         }
-    
-    func addPeriodicTimeObserver() {
-        let interval = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
-        if let existingToken = timeObserverToken {
-            player.removeTimeObserver(existingToken)
-            timeObserverToken = nil
-        }
-
-        timeObserverToken = player.addPeriodicTimeObserver(forInterval: interval, queue: DispatchQueue.main) { [weak self] time in
-            guard let self = self,
-                  self.player.rate > 0, // Confirm player is actively playing
-                  let currentItem = self.player.currentItem,
-                  currentItem.status == .readyToPlay else { return }
-
-            // The player is playing, and the AVPlayerItem is ready.
-            let currentTime = CMTimeGetSeconds(time)
-            let duration = CMTimeGetSeconds(currentItem.duration)
-            if duration > 0 {
-                let progress = currentTime / duration
-                Task {
-                    await self.delegate?.playbackProgressDidChange(to: progress)
-                }
-            }
-        }
-    }
     
     private func notifyDelegateOfStateChange() {
             // Assuming `isPlaying` returns true if the player is playing
