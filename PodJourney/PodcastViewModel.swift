@@ -114,20 +114,17 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     
     // Update UI based on the current playback time and total duration
     func updatePlaybackUI() {
-        DispatchQueue.main.async {
-            print("updatePlaybackUI called")
-            guard let duration = self.mediaPlayer.player.currentItem?.duration.seconds, duration.isFinite else {
-                print("Duration unavailable or infinite, cannot update UI.")
-                return
-            }
+        guard let duration = self.player.currentItem?.duration.seconds, duration.isFinite else {
+            print("Duration unavailable or infinite, cannot update UI.")
+            return
+        }
 
-            let currentTime = self.mediaPlayer.player.currentTime().seconds ?? 0
-            let remainingTime = duration - currentTime
-            
+        let currentTime = self.player.currentTime().seconds
+        let remainingTime = duration - currentTime
+
+        DispatchQueue.main.async {
             self.currentTimeDisplay = self.formatTime(seconds: currentTime)
             self.remainingTimeDisplay = self.formatTime(seconds: remainingTime)
-
-            print("UI Updated - Current Time: \(self.currentTimeDisplay), Remaining Time: \(self.remainingTimeDisplay)")
         }
     }
 
@@ -191,17 +188,16 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         let playerItem = AVPlayerItem(url: url)
         player.replaceCurrentItem(with: playerItem)
 
-        // Invalidate the previous observer to avoid duplicates.
         playerItemObserver?.invalidate()
 
-        // Observe the playerItem's status.
-        playerItemObserver = playerItem.observe(\.status, options: [.new]) { [weak self] (item, _) in
-            guard let strongSelf = self else { return }
+        playerItemObserver = playerItem.observe(\.status, options: [.new, .old]) { [weak self] item, change in
             DispatchQueue.main.async {
+                guard let strongSelf = self else { return }
                 if item.status == .readyToPlay {
-                    // Now using strongSelf to refer to self within the closure
+                    print("🟢 Player item is now ready to play. Duration: \(item.duration.seconds) seconds")
+                    strongSelf.setupPeriodicTimeObserver()
                     strongSelf.totalDuration = item.duration.seconds
-                    strongSelf.updateTimeDisplay()
+                    strongSelf.updatePlaybackUI()
                 }
             }
         }
@@ -618,10 +614,15 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     }
     
     func setupPeriodicTimeObserver() {
+        // Remove any existing time observer
+        if let timeObserverToken = timeObserverToken {
+            player.removeTimeObserver(timeObserverToken)
+        }
+
         let interval = CMTime(seconds: 1, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
-        mediaPlayer.player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
-            print("Periodic time observer triggered: \(time.seconds)") // Add this line
-            self?.updateCurrentTimeDisplay(time: time)
+        // Add a new time observer
+        timeObserverToken = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
+            self?.updatePlaybackUI()
         }
     }
     
@@ -652,9 +653,13 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         mediaPlayer.player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
             guard let self = self else { return }
             print("Time observer triggered: currentTime = \(time.seconds) seconds")
-            
-            // Now update the UI with the new time
-            self.updatePlaybackUI()
+                
+            // Explicitly indicate that updatePlaybackUI() is called on the main actor
+            Task {
+                await MainActor.run {
+                    self.updatePlaybackUI()
+                }
+            }
         }
     }
     
