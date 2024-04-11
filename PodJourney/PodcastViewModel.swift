@@ -114,17 +114,29 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     
     // Update UI based on the current playback time and total duration
     func updatePlaybackUI() {
-        guard let duration = self.player.currentItem?.duration.seconds, duration.isFinite else {
+        guard let currentItem = self.player.currentItem else {
+            print("Current item is nil, cannot update UI.")
+            return
+        }
+
+        let duration = currentItem.duration.seconds
+        guard duration.isFinite && !duration.isNaN else {
             print("Duration unavailable or infinite, cannot update UI.")
             return
         }
 
         let currentTime = self.player.currentTime().seconds
-        let remainingTime = duration - currentTime
+        let progress = currentTime / duration // Calculate the progress as a fraction
 
         DispatchQueue.main.async {
+            // Update the time displays
             self.currentTimeDisplay = self.formatTime(seconds: currentTime)
-            self.remainingTimeDisplay = self.formatTime(seconds: remainingTime)
+            self.remainingTimeDisplay = self.formatTime(seconds: max(0, duration - currentTime))
+
+            // Only update the uiPlaybackProgress if the user is not interacting with the progress bar
+            if !self.isUserInteractingWithProgressBar {
+                self.uiPlaybackProgress = progress
+            }
         }
     }
 
@@ -284,16 +296,28 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
 
     func skipForward(seconds: Double) {
         let currentTime = player.currentTime()
+        guard let duration = player.currentItem?.duration, duration.isNumeric else { return }
         let newTime = CMTimeAdd(currentTime, CMTimeMakeWithSeconds(seconds, preferredTimescale: Int32(NSEC_PER_SEC)))
-        player.seek(to: newTime)
-        print("Skipped forward \(seconds) seconds.")
+
+        player.seek(to: newTime) { [weak self] _ in
+            // Ensure updatePlaybackUI() is called on the main thread
+            DispatchQueue.main.async {
+                self?.updatePlaybackUI()
+            }
+        }
     }
 
     func skipBackward(seconds: Double) {
         let currentTime = player.currentTime()
+        guard let duration = player.currentItem?.duration, duration.isNumeric else { return }
         let newTime = CMTimeSubtract(currentTime, CMTimeMakeWithSeconds(seconds, preferredTimescale: Int32(NSEC_PER_SEC)))
-        player.seek(to: newTime)
-        print("Skipped backward \(seconds) seconds.")
+
+        player.seek(to: newTime) { [weak self] _ in
+            // Ensure updatePlaybackUI() is called on the main thread
+            DispatchQueue.main.async {
+                self?.updatePlaybackUI()
+            }
+        }
     }
     
     @MainActor
@@ -614,15 +638,15 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     }
     
     func setupPeriodicTimeObserver() {
-        // Remove any existing time observer
+        // Ensure any existing observer is removed
         if let timeObserverToken = timeObserverToken {
             player.removeTimeObserver(timeObserverToken)
         }
 
         let interval = CMTime(seconds: 1, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
-        // Add a new time observer
-        timeObserverToken = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
+        timeObserverToken = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] _ in
             self?.updatePlaybackUI()
+            print("Updating UI - Current Playback Progress: \(self?.playbackProgress ?? 0)")
         }
     }
     
