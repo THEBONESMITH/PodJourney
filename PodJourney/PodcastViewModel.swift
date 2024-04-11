@@ -645,8 +645,12 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
 
         let interval = CMTime(seconds: 1, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         timeObserverToken = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] _ in
-            self?.updatePlaybackUI()
-            print("Updating UI - Current Playback Progress: \(self?.playbackProgress ?? 0)")
+            guard let self = self else { return } // Safely unwrap weak self
+
+            Task { @MainActor in  // Ensure execution on the main actor
+                self.updatePlaybackUI()
+                print("Updating UI - Current Playback Progress: \(self.playbackProgress)")
+            }
         }
     }
     
