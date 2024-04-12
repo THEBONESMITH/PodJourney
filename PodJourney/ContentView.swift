@@ -492,6 +492,7 @@ struct ContentView: View {
         var body: some View {
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
+                    // Left side content, including title, description, and duration
                     VStack(alignment: .leading, spacing: 4) {
                         Spacer(minLength: 6)
                         Text(episode.title)
@@ -502,37 +503,34 @@ struct ContentView: View {
                             .font(.caption)
                             .foregroundColor(.white)
                             .lineLimit(2)
-                        Spacer(minLength: 6)
                         Text(parseDuration(duration: episode.duration))
                             .font(.caption)
                             .foregroundColor(.white)
-                            .alignmentGuide(.leading) { d in d[.leading] }
-                        Text(EpisodeRowView.formatDate(episode.date)) // Display formatted date
-                            .font(.caption)
-                            .foregroundColor(.white)
-                            .alignmentGuide(.trailing) { d in d[.trailing] }
-                    }
-                    .layoutPriority(100)
-
-                    Spacer()
-
-                    if isHovering {
-                        VStack {
-                            playButton.padding(.top, 2)
-                            Spacer()
-                        }
-                        .transition(.opacity)
-                        .animation(.easeInOut, value: isHovering)
+                        Spacer(minLength: 6)
                     }
 
+                    Spacer() // This pushes the left content and right content apart
+
+                    // Right side content with play button and info button
                     VStack {
-                        Spacer()
-                        infoButton.padding(.bottom, 2)
+                        if isHovering {
+                            playButton
+                                .padding(.top, 2)
+                            Spacer() // This will create space between the play button and the info button
+                        }
+                        infoButton
+                            .padding(.bottom, 2)
                     }
                 }
-                .padding(.vertical, 4)
+                .padding(.horizontal, 8) // Add horizontal padding to the HStack
 
-                Spacer(minLength: 2)
+                // Date text aligned at the bottom-right
+                HStack {
+                    Spacer() // Pushes the date to the right
+                    Text(EpisodeRowView.formatDate(episode.date)) // Display formatted date
+                        .font(.caption)
+                        .foregroundColor(.white)
+                }
             }
             .frame(height: 112) // Fixed height for the entire row
             .background(RoundedRectangle(cornerRadius: 8).fill(selectedEpisode?.id == episode.id ? highlightColor : Color.clear))
