@@ -503,7 +503,12 @@ struct ContentView: View {
                             .foregroundColor(.white)
                             .lineLimit(2)
                         Spacer(minLength: 6)
+                        Text("\(episode.duration)") // Displaying the duration
+                            .font(.caption)
+                            .foregroundColor(.white)
+                            .alignmentGuide(.leading) { d in d[.leading] }
                     }
+                    .layoutPriority(100)
 
                     Spacer()
 
@@ -524,14 +529,6 @@ struct ContentView: View {
                 .padding(.vertical, 4)
 
                 Spacer(minLength: 2)
-
-                HStack {
-                    Spacer()
-                    Text(Self.formatDate(episode.date))
-                        .font(.caption)
-                        .foregroundColor(.white)
-                        .padding(.bottom, 8)
-                }
             }
             .frame(height: 112) // Fixed height for the entire row
             .background(RoundedRectangle(cornerRadius: 8).fill(selectedEpisode?.id == episode.id ? highlightColor : Color.clear))
@@ -546,7 +543,6 @@ struct ContentView: View {
             }
             .simultaneousGesture(
                 TapGesture(count: 2).onEnded {
-                    // Replace direct mediaPlayer access with a call to the new ViewModel method
                     Task {
                         viewModel.userRequestsPlayback(for: episode)
                     }

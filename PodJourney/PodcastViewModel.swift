@@ -375,7 +375,6 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
             return
         }
 
-        // Move to asynchronous context
         await withCheckedContinuation { continuation in
             let parser = FeedParser(URL: url)
 
@@ -400,11 +399,16 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
                                       let episodeUrl = URL(string: episodeLink) else {
                                     return nil
                                 }
-                                
+
                                 let dateFormatter = DateFormatter()
                                 dateFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
                                 let pubDateString = dateFormatter.string(from: pubDate)
                                 let cleanDescription = rawDescription.simplifiedHTML().fixApostrophes()
+                                let duration = item.iTunes?.iTunesDuration.map { [weak self] interval -> String in
+                                    guard let self = self else { return "Unknown Duration" }
+                                    return self.stringFromTimeInterval(interval: interval)
+                                } ?? "Unknown Duration"
+
 
                                 return Episode(
                                     id: UUID(),
@@ -415,8 +419,10 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
                                     date: pubDateString,
                                     author: item.iTunes?.iTunesAuthor ?? rssFeed.iTunes?.iTunesAuthor ?? "Unknown Author",
                                     website: URL(string: item.link ?? ""),
+                                    category: nil,  // Set to nil or remove entirely if not needed
                                     rating: item.iTunes?.iTunesExplicit == "yes" ? "Explicit" : "Clean",
-                                    size: item.enclosure?.attributes?.length.flatMap(Int64.init) ?? 0
+                                    size: item.enclosure?.attributes?.length.flatMap(Int64.init) ?? 0,
+                                    duration: duration
                                 )
                             } ?? []
                         } else {
@@ -427,13 +433,26 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
                         print("Error parsing feed: \(error.localizedDescription)")
                         self.episodes = []
                     }
-                    // Once all updates are done, resume the continuation to signal completion of async task
                     continuation.resume()
                 }
             }
         }
     }
     
+    func stringFromTimeInterval(interval: TimeInterval) -> String {
+        let interval = Int(interval)
+        let hours = interval / 3600
+        let minutes = (interval % 3600) / 60
+        let seconds = interval % 60
+        if hours > 0 {
+            return String(format: "%d hours %d minutes %d seconds", hours, minutes, seconds)
+        } else if minutes > 0 {
+            return String(format: "%d minutes %d seconds", minutes, seconds)
+        } else {
+            return String(format: "%d seconds", seconds)
+        }
+    }
+
     @MainActor
     func userDidEndInteracting(progress: Double) async {
         // Assuming seekToProgress is an async function
