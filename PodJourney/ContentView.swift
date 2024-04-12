@@ -182,7 +182,7 @@ struct ContentView: View {
                 // MARK: - Podcast Footer (Newly Added)
                 PodcastFooter() // This adds the PodcastFooter above the control buttons
                     .environmentObject(viewModel)
-                
+                    .padding(.bottom, -45) // Add or reduce padding to move the footer up or down
                 // MARK: - Playback Controls (Always Visible, below the main content)
                 VStack {
                     HStack {
@@ -304,7 +304,7 @@ struct ContentView: View {
             }
             .padding(.vertical, 8)
             .frame(maxWidth: 350) // Constrain the width of the footer
-            .background(Color.black.opacity(0.8))
+            .background(Color(hex: "404040"))
             .cornerRadius(10)
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
