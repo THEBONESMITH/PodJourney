@@ -503,10 +503,14 @@ struct ContentView: View {
                             .foregroundColor(.white)
                             .lineLimit(2)
                         Spacer(minLength: 6)
-                        Text(parseDuration(duration: episode.duration)) // Use parse function
+                        Text(parseDuration(duration: episode.duration))
                             .font(.caption)
                             .foregroundColor(.white)
                             .alignmentGuide(.leading) { d in d[.leading] }
+                        Text(EpisodeRowView.formatDate(episode.date)) // Display formatted date
+                            .font(.caption)
+                            .foregroundColor(.white)
+                            .alignmentGuide(.trailing) { d in d[.trailing] }
                     }
                     .layoutPriority(100)
 
@@ -587,16 +591,16 @@ struct ContentView: View {
             }
             .buttonStyle(BorderlessButtonStyle())
         }
-
+        
         static func formatDate(_ dateString: String) -> String {
-            let inputFormatter = DateFormatter()
-            inputFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
-            guard let date = inputFormatter.date(from: dateString) else { return dateString }
-            
-            let outputFormatter = DateFormatter()
-            outputFormatter.dateFormat = "dd/MM/yyyy"
-            return outputFormatter.string(from: date)
-        }
+                let inputFormatter = DateFormatter()
+                inputFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
+                guard let date = inputFormatter.date(from: dateString) else { return dateString }
+                
+                let outputFormatter = DateFormatter()
+                outputFormatter.dateFormat = "dd/MM/yyyy"
+                return outputFormatter.string(from: date)
+            }
     }
     
     /*
