@@ -503,7 +503,7 @@ struct ContentView: View {
                             .foregroundColor(.white)
                             .lineLimit(2)
                         Spacer(minLength: 6)
-                        Text("\(episode.duration)") // Displaying the duration
+                        Text(parseDuration(duration: episode.duration)) // Use parse function
                             .font(.caption)
                             .foregroundColor(.white)
                             .alignmentGuide(.leading) { d in d[.leading] }
@@ -551,6 +551,18 @@ struct ContentView: View {
             .onHover { hover in
                 self.isHovering = hover
             }
+        }
+
+        private func parseDuration(duration: String) -> String {
+            let components = duration.components(separatedBy: CharacterSet.decimalDigits.inverted).compactMap { Int($0) }
+            if components.count == 3 {
+                return String(format: "%d:%02d:%02d", components[0], components[1], components[2])
+            } else if components.count == 2 {
+                return String(format: "0:%02d:%02d", components[0], components[1])
+            } else if components.count == 1 {
+                return String(format: "0:00:%02d", components[0])
+            }
+            return "0:00:00" // Default case if parsing fails
         }
 
         private var playButton: some View {
