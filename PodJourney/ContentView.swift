@@ -516,6 +516,7 @@ struct ContentView: View {
                         VStack {
                             if isHovering {
                                 playButton
+                                    .offset(x: 20, y: 0) // Nudge play button to the right
                             }
                         }
                         .frame(height: 30) // Adjust the height as needed for your layout
@@ -523,6 +524,7 @@ struct ContentView: View {
                         Spacer() // This will dynamically resize
 
                         infoButton
+                            .offset(x: 20, y: 0) // Nudge info button to the right
 
                         Spacer() // This will dynamically resize
                         
