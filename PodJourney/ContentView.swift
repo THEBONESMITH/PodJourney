@@ -507,6 +507,7 @@ struct ContentView: View {
                         Text(parseDuration(duration: episode.duration))
                             .font(.caption)
                             .foregroundColor(.white)
+                            .offset(x: 0, y: -5) // Nudge duration up
                     }
                     Spacer() // Pushes content to the sides
 
@@ -531,6 +532,7 @@ struct ContentView: View {
                         Text(EpisodeRowView.formatDate(episode.date)) // Display formatted date
                             .font(.caption)
                             .foregroundColor(.white)
+                            .offset(x: 0, y: -5) // Nudge date up
                     }
                     .padding(.trailing, 0) // Add more padding to push the buttons further to the right
                 }
