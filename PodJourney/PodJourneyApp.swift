@@ -43,7 +43,12 @@ struct PodJourneyApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(viewModel)
+                .frame(minWidth: 800, minHeight: 600) // Minimum size
         }
+        .commands {
+            CommandGroup(replacing: .newItem, addition: { })
+        }
+        .windowStyle(DefaultWindowStyle())
+        .windowToolbarStyle(UnifiedCompactWindowToolbarStyle())
     }
 }
-

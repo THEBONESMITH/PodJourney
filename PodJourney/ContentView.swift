@@ -525,7 +525,7 @@ struct ContentView: View {
                         Spacer() // This will dynamically resize
 
                         infoButton
-                            .offset(x: 20, y: 0) // Nudge info button to the right
+                            .offset(x: 20, y: -5) // Nudge info button to the right/up
 
                         Spacer() // This will dynamically resize
                         
