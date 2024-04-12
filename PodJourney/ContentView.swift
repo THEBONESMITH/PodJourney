@@ -503,34 +503,36 @@ struct ContentView: View {
                             .font(.caption)
                             .foregroundColor(.white)
                             .lineLimit(2)
+                        Spacer(minLength: 6)
                         Text(parseDuration(duration: episode.duration))
                             .font(.caption)
                             .foregroundColor(.white)
-                        Spacer(minLength: 6)
                     }
+                    Spacer() // Pushes content to the sides
 
-                    Spacer() // This pushes the left content and right content apart
-
-                    // Right side content with play button and info button
+                    // Right side content, with play button on top and info button centered
                     VStack {
-                        if isHovering {
-                            playButton
-                                .padding(.top, 2)
-                            Spacer() // This will create space between the play button and the info button
+                        // Fixed size container for the play button
+                        VStack {
+                            if isHovering {
+                                playButton
+                            }
                         }
+                        .frame(height: 30) // Adjust the height as needed for your layout
+
+                        Spacer() // This will dynamically resize
+
                         infoButton
-                            .padding(.bottom, 2)
+
+                        Spacer() // This will dynamically resize
+                        
+                        Text(EpisodeRowView.formatDate(episode.date)) // Display formatted date
+                            .font(.caption)
+                            .foregroundColor(.white)
                     }
+                    .padding(.trailing, 0) // Add more padding to push the buttons further to the right
                 }
                 .padding(.horizontal, 8) // Add horizontal padding to the HStack
-
-                // Date text aligned at the bottom-right
-                HStack {
-                    Spacer() // Pushes the date to the right
-                    Text(EpisodeRowView.formatDate(episode.date)) // Display formatted date
-                        .font(.caption)
-                        .foregroundColor(.white)
-                }
             }
             .frame(height: 112) // Fixed height for the entire row
             .background(RoundedRectangle(cornerRadius: 8).fill(selectedEpisode?.id == episode.id ? highlightColor : Color.clear))
