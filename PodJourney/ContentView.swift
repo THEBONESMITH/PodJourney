@@ -53,8 +53,8 @@ struct ContentView: View {
     // Define the body property of a SwiftUI View
     var body: some View {
         // Button("Play Audio") {
-                    // viewModel.playSampleAudio()
-                // }
+        // viewModel.playSampleAudio()
+        // }
         HStack { // Start of the main horizontal layout
             // MARK: - Sidebar
             VStack {
@@ -107,110 +107,86 @@ struct ContentView: View {
                     }
                     
                     VStack { // This VStack will contain the search view, episode details, or the episodes list
-                            if showingSearch {
-                                // MARK: - Search View (when search is active)
-                                SearchView(showingSearch: $showingSearch, viewModel: viewModel)
-                                    .frame(maxWidth: .infinity,          maxHeight: .infinity)
-                            } else if showingEpisodeDetail, let episode = selectedEpisode {
-                                // MARK: - Episode Details View with Back Button
-                                VStack(alignment: .leading) {
-                                    Button(action: {
-                                        self.showingEpisodeDetail = false
-                                        // Add simulated tab press immediately after toggling the detail view
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                            simulateTabPress()
-                                        }
-                                    }) {
-                                        HStack {
-                                            Image(systemName: "chevron.backward")
-                                                .resizable()
-                                                .scaledToFit()
-                                                .foregroundColor(.gray)
-                                                .frame(width: 30, height: 30) // Adjust for larger button
-                                                .padding(.top, 25) // Increase the top padding to move the button down
-                                                .padding(.leading)
-                                        }
+                        if showingSearch {
+                            // MARK: - Search View (when search is active)
+                            SearchView(showingSearch: $showingSearch, viewModel: viewModel)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        } else if showingEpisodeDetail, let episode = selectedEpisode {
+                            // MARK: - Episode Details View with Back Button
+                            VStack(alignment: .leading) {
+                                Button(action: {
+                                    self.showingEpisodeDetail = false
+                                    // Add simulated tab press immediately after toggling the detail view
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                        simulateTabPress()
                                     }
-                                    .buttonStyle(PlainButtonStyle())
-                                    .padding(.leading, 5) // Adjust padding as needed to position the back button
-                                    
-                                    EpisodeDetailSubView(episode: episode) // Display episode details
-                                        .padding(.leading)
-                                }
-                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                            } else {
-                                // MARK: - Episodes List View (default state for main content area)
-                                ScrollView {
-                                    LazyVStack(spacing: 0) {
-                                        ForEach(viewModel.episodes.indices, id: \.self) { index in
-                                            EpisodeRowView(
-                                                episode: viewModel.episodes[index],
-                                                selectedEpisode: $selectedEpisode,
-                                                showingEpisodeDetail: $showingEpisodeDetail,
-                                                onDoubleTap: {
-                                                    // Implementation for double-tap action
-                                                    // Likely you want to play the episode here, similar to:
-                                                    // viewModel.onEpisodeDoubleClicked(viewModel.episodes[index])
-                                                },
-                                                onPlay: {
-                                                    // Placeholder action for onPlay, does nothing for now
-                                                    // Adjust this based on how you want to handle play actions from this context
-                                                },
-                                                viewModel: viewModel // Make sure to pass the viewModel here
-                                            )
-                                            
-                                            // Only add a divider if it's not the last item
-                                            if index < viewModel.episodes.count - 1 {
-                                                // Wrapping CustomDivider in a VStack and applying horizontal padding
-                                                VStack {
-                                                    CustomDivider(color: Color.gray.opacity(0.3), thickness: 1)
-                                                }
-                                                .padding(.horizontal, 8) // Adjust this value to control the divider's length
-                                            }
-                                        }
+                                }) {
+                                    HStack {
+                                        Image(systemName: "chevron.backward")
+                                            .resizable()
+                                            .scaledToFit()
+                                            .foregroundColor(.gray)
+                                            .frame(width: 30, height: 30) // Adjust for larger button
+                                            .padding(.top, 25) // Increase the top padding to move the button down
+                                            .padding(.leading)
                                     }
                                 }
-                                .frame(maxWidth: .infinity) // Ensure the ScrollView takes up the full available width
+                                .buttonStyle(PlainButtonStyle())
+                                .padding(.leading, 5) // Adjust padding as needed to position the back button
                                 
+                                EpisodeDetailSubView(episode: episode) // Display episode details
+                                    .padding(.leading)
                             }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        } else {
+                            // MARK: - Episodes List View (default state for main content area)
+                            ScrollView {
+                                LazyVStack(spacing: 0) {
+                                    ForEach(viewModel.episodes.indices, id: \.self) { index in
+                                        EpisodeRowView(
+                                            episode: viewModel.episodes[index],
+                                            selectedEpisode: $selectedEpisode,
+                                            showingEpisodeDetail: $showingEpisodeDetail,
+                                            onDoubleTap: {
+                                                // Implementation for double-tap action
+                                                // Likely you want to play the episode here, similar to:
+                                                // viewModel.onEpisodeDoubleClicked(viewModel.episodes[index])
+                                            },
+                                            onPlay: {
+                                                // Placeholder action for onPlay, does nothing for now
+                                                // Adjust this based on how you want to handle play actions from this context
+                                            },
+                                            viewModel: viewModel // Make sure to pass the viewModel here
+                                        )
+                                        
+                                        // Only add a divider if it's not the last item
+                                        if index < viewModel.episodes.count - 1 {
+                                            // Wrapping CustomDivider in a VStack and applying horizontal padding
+                                            VStack {
+                                                CustomDivider(color: Color.gray.opacity(0.3), thickness: 1)
+                                            }
+                                            .padding(.horizontal, 8) // Adjust this value to control the divider's length
+                                        }
+                                    }
+                                }
+                            }
+                            .frame(maxWidth: .infinity) // Ensure the ScrollView takes up the full available width
+                            
                         }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity) // Ensure VStack takes up all available space
-                        .background(FocusableView()) // Background of the content area
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity) // Ensure VStack takes up all available space
+                    .background(FocusableView()) // Background of the content area
+                }
                 Spacer()
+                
+                // MARK: - Podcast Footer (Newly Added)
+                PodcastFooter() // This adds the PodcastFooter above the control buttons
+                    .environmentObject(viewModel)
                 
                 // MARK: - Playback Controls (Always Visible, below the main content)
                 VStack {
                     HStack {
                         Spacer(minLength: 45)
-                        
-                        Text(viewModel.currentTimeDisplay)
-                            .frame(width: 80, alignment: .trailing)
-                        
-                        CustomProgressBar(
-                            progress: $viewModel.uiPlaybackProgress,
-                            totalDuration: $viewModel.totalDuration,
-                            isUserInteracting: $viewModel.isUserInteracting,
-                            onSeek: { newProgress in
-                                Task {
-                                    await viewModel.seekToProgress(newProgress)
-                                }
-                            },
-                            onSeekStart: {
-                                viewModel.userDidStartInteracting()
-                            },
-                            onSeekEnd: { finalProgress in
-                                Task {
-                                    await viewModel.userDidEndInteracting(progress: finalProgress)
-                                }
-                            }
-                        )
-                        .frame(width: 200, height: 10)
-                        
-                        Text(viewModel.remainingTimeDisplay)
-                            .frame(width: 80, alignment: .leading)
-                        
-                        Spacer()
                         
                         VolumeSlider(volume: $volume, onVolumeChange: { newVolume in
                             viewModel.adjustVolume(to: Float(newVolume))
@@ -252,6 +228,88 @@ struct ContentView: View {
                     break
                 }
             }
+        }
+    }
+    
+    struct PodcastFooter: View {
+        @EnvironmentObject var viewModel: PodcastViewModel
+
+        var body: some View {
+            VStack {
+                Divider()
+                HStack {
+                    if let imageUrl = viewModel.podcastImageUrl {
+                        AsyncImage(url: imageUrl) { imagePhase in
+                            switch imagePhase {
+                            case .success(let image):
+                                image.resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 50, height: 50)
+                            case .failure(_):
+                                Image(systemName: "photo")
+                                    .frame(width: 50, height: 50)
+                            case .empty:
+                                ProgressView()
+                                    .frame(width: 50, height: 50)
+                            @unknown default:
+                                EmptyView()
+                            }
+                        }
+                        .padding(.leading, 8)
+                    }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(viewModel.podcastTitle ?? "Loading Podcast...")
+                            .font(.headline)
+                            .lineLimit(1)
+                        Text(viewModel.currentlyPlaying?.title ?? "Select an Episode...")
+                            .font(.subheadline)
+                            .lineLimit(1)
+                    }
+                    
+                    Spacer()
+                }
+                .padding(.horizontal, 8)
+
+                HStack {
+                    Text(viewModel.currentTimeDisplay)
+                        .font(.caption)
+                        .frame(width: 50, alignment: .leading)
+
+                    CustomProgressBar(
+                        progress: $viewModel.uiPlaybackProgress,
+                        totalDuration: $viewModel.totalDuration,
+                        isUserInteracting: $viewModel.isUserInteracting,
+                        onSeek: { newProgress in
+                            Task {
+                                await viewModel.seekToProgress(newProgress)
+                            }
+                        },
+                        onSeekStart: {
+                            viewModel.userDidStartInteracting()
+                        },
+                        onSeekEnd: { finalProgress in
+                            Task {
+                                await viewModel.userDidEndInteracting(progress: finalProgress)
+                            }
+                        }
+                    )
+                    .frame(height: 5)
+
+                    Text(viewModel.remainingTimeDisplay)
+                        .font(.caption)
+                        .frame(width: 50, alignment: .trailing)
+                }
+                .padding(.horizontal, 8)
+            }
+            .padding(.vertical, 8)
+            .frame(maxWidth: 350) // Constrain the width of the footer
+            .background(Color.black.opacity(0.8))
+            .cornerRadius(10)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Color.gray, lineWidth: 0.5)
+            )
         }
     }
     
