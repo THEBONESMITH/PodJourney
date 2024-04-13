@@ -112,6 +112,19 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
             print("PodcastViewModel initialized with direct AVPlayer control.")
         }
     
+    // Calculate the width of the text using the NSFont (macOS)
+    func widthOfString(_ string: String, font: NSFont) -> CGFloat {
+            let attributedString = NSAttributedString(string: string, attributes: [.font: font])
+            let size = attributedString.size()
+            return size.width
+        }
+        
+        // Function to decide whether the text should scroll
+        func shouldScrollText(_ text: String, in size: CGSize) -> Bool {
+            let textWidth = widthOfString(text, font: .systemFont(ofSize: NSFont.systemFontSize))
+            return textWidth > size.width
+        }
+
     // Update UI based on the current playback time and total duration
     func updatePlaybackUI() {
         guard let currentItem = self.player.currentItem else {

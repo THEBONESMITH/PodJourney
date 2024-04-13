@@ -9,6 +9,7 @@ import CoreData
 import SwiftUI
 import AVFoundation
 import Combine
+import os
 
 // Extension to parse hex colors
 extension Color {
@@ -231,20 +232,32 @@ struct ContentView: View {
             }
         }
     }
-    
+
+    // MARK:PodcastFooter
     struct PodcastFooter: View {
         @EnvironmentObject var viewModel: PodcastViewModel
+        @State private var animateText: Bool = false
+        @State private var textOffset: CGFloat = 0
+
+        // Configuration constants
+        private let imageWidth: CGFloat = 80
+        private let additionalSpacing: CGFloat = 10 // Space between the image and the start of the text
+        private let animationDuration: Double = 15.0 // Slower animation
+        private let leftEdgeOffset: CGFloat = 20 // Offset from the left edge of the footer
+        private let footerHeight: CGFloat = 80
+        private let footerWidth: CGFloat = 450
+        private let footerBackgroundColor = Color(hex: "404040")
+
+        let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.yourdomain.yourapp", category: "PodcastFooter")
 
         var body: some View {
             HStack {
-                // Enlarged podcast image on the left with no left padding
                 if let imageUrl = viewModel.podcastImageUrl {
-                    AsyncImage(url: imageUrl) { imagePhase in
-                        switch imagePhase {
+                    AsyncImage(url: imageUrl) {
+                        switch $0 {
                         case .success(let image):
                             image.resizable()
-                                .aspectRatio(contentMode: .fill)
-                        case .failure(_):
+                        case .failure:
                             Image(systemName: "photo")
                         case .empty:
                             ProgressView()
@@ -252,39 +265,53 @@ struct ContentView: View {
                             EmptyView()
                         }
                     }
-                    .frame(width: 80, height: 80) // Enlarged image size
-                    .cornerRadius(5) // Assuming corner radius for styling
+                    .frame(width: imageWidth, height: imageWidth) // Image size
+                    .cornerRadius(5)
                 }
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    // Episode title above the podcast title
-                    Text(viewModel.currentlyPlaying?.title ?? "Select an Episode...")
-                        .font(.subheadline)
-                        .lineLimit(1)
+
+                // Text container with offset
+                ZStack(alignment: .leading) {
+                    footerBackgroundColor
+                        .frame(width: footerWidth - imageWidth - leftEdgeOffset, height: footerHeight)
+                        .cornerRadius(10)
                     
-                    // Centered the podcast title
+                    VStack(alignment: .leading, spacing: 4) {
+                        GeometryReader { geometry in
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                Text(viewModel.currentlyPlaying?.title ?? "Select an Episode...")
+                                    .font(.subheadline)
+                                    .lineLimit(1)
+                                    .offset(x: animateText ? -textOffset : 0)
+                                    .animation(animateText ? .linear(duration: animationDuration).repeatForever(autoreverses: false) : nil, value: animateText)
+                                    .onAppear {
+                                        updateScrolling(geometry.size)
+                                    }
+                                    .onChange(of: viewModel.currentlyPlaying?.title) { _, _ in
+                                        updateScrolling(geometry.size)
+                                    }
+                            }
+                            .frame(width: geometry.size.width - (imageWidth + additionalSpacing + leftEdgeOffset), alignment: .leading)
+                        }
+                    }
+
                     Text(viewModel.podcastTitle ?? "Loading Podcast...")
                         .font(.headline)
                         .lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .center) // This will center the podcast title
+                        .frame(maxWidth: .infinity, alignment: .center)
                     
-                    // Timer and Progress Bar Stack
                     VStack {
                         HStack {
-                            // Current time on the left
                             Text(viewModel.currentTimeDisplay)
                                 .font(.caption)
                                 .frame(alignment: .leading)
-                            
+
                             Spacer()
                             
-                            // Remaining time on the right
                             Text(viewModel.remainingTimeDisplay)
                                 .font(.caption)
                                 .frame(alignment: .trailing)
                         }
                         
-                        // Progress bar below the timers
                         CustomProgressBar(
                             progress: $viewModel.uiPlaybackProgress,
                             totalDuration: $viewModel.totalDuration,
@@ -306,17 +333,27 @@ struct ContentView: View {
                         .frame(height: 5)
                     }
                 }
-                .padding(.leading, 0) // Remove padding on the left of the VStack
+                .padding(.leading, 0)
 
                 Spacer()
             }
-            .frame(maxWidth: 450, maxHeight: 80) // Adjusted for the correct width and height of the footer
+            .frame(maxWidth: 450, maxHeight: 80)
             .background(Color(hex: "404040"))
             .cornerRadius(10)
-            // Adjust padding to align with the image
-            .padding(.leading, -8) // Adjust this value as needed to align with the left edge of the podcast image
+            .padding(.leading, -8)
         }
-    }
+
+        private func updateScrolling(_ size: CGSize) {
+                let textWidth = viewModel.widthOfString(viewModel.currentlyPlaying?.title ?? "", font: .systemFont(ofSize: NSFont.systemFontSize))
+                if textWidth > size.width - (imageWidth + additionalSpacing + leftEdgeOffset) {
+                    textOffset = textWidth  // Setup initial text offset
+                    animateText = true
+                } else {
+                    animateText = false
+                }
+                logger.log("Updated scrolling settings. Text width: \(textWidth), Container width: \(size.width), Should scroll: \(animateText)")
+            }
+        }
     
     private func handleVolumeChange(newVolume: Double) {
             viewModel.adjustVolume(to: Float(newVolume))
