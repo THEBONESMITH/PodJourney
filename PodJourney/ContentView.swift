@@ -256,7 +256,7 @@ struct ContentView: View {
                 }
                 
                 VStack(alignment: .leading, spacing: 4) {
-                    // Switched positions so the episode title is on top
+                    // Episode title above the podcast title
                     Text(viewModel.currentlyPlaying?.title ?? "Select an Episode...")
                         .font(.subheadline)
                         .lineLimit(1)
@@ -266,47 +266,51 @@ struct ContentView: View {
                         .font(.headline)
                         .lineLimit(1)
                         .frame(maxWidth: .infinity, alignment: .center) // This will center the podcast title
-
-                    // Progress bar right below the text, aligned to the left
-                    CustomProgressBar(
-                        progress: $viewModel.uiPlaybackProgress,
-                        totalDuration: $viewModel.totalDuration,
-                        isUserInteracting: $viewModel.isUserInteracting,
-                        onSeek: { newProgress in
-                            Task {
-                                await viewModel.seekToProgress(newProgress)
-                            }
-                        },
-                        onSeekStart: {
-                            viewModel.userDidStartInteracting()
-                        },
-                        onSeekEnd: { finalProgress in
-                            Task {
-                                await viewModel.userDidEndInteracting(progress: finalProgress)
-                            }
+                    
+                    // Timer and Progress Bar Stack
+                    VStack {
+                        HStack {
+                            // Current time on the left
+                            Text(viewModel.currentTimeDisplay)
+                                .font(.caption)
+                                .frame(alignment: .leading)
+                            
+                            Spacer()
+                            
+                            // Remaining time on the right
+                            Text(viewModel.remainingTimeDisplay)
+                                .font(.caption)
+                                .frame(alignment: .trailing)
                         }
-                    )
-                    .frame(height: 5)
+                        
+                        // Progress bar below the timers
+                        CustomProgressBar(
+                            progress: $viewModel.uiPlaybackProgress,
+                            totalDuration: $viewModel.totalDuration,
+                            isUserInteracting: $viewModel.isUserInteracting,
+                            onSeek: { newProgress in
+                                Task {
+                                    await viewModel.seekToProgress(newProgress)
+                                }
+                            },
+                            onSeekStart: {
+                                viewModel.userDidStartInteracting()
+                            },
+                            onSeekEnd: { finalProgress in
+                                Task {
+                                    await viewModel.userDidEndInteracting(progress: finalProgress)
+                                }
+                            }
+                        )
+                        .frame(height: 5)
+                    }
                 }
                 .padding(.leading, 8)
-
-                Spacer()
                 
-                // Timer and Playback controls aligned to the right
-                VStack {
-                    Text(viewModel.currentTimeDisplay)
-                        .font(.caption)
-                        .frame(alignment: .leading)
-                    
-                    Spacer()
-                    
-                    Text(viewModel.remainingTimeDisplay)
-                        .font(.caption)
-                        .frame(alignment: .trailing)
-                }
+                Spacer()
             }
             .padding()
-            .frame(maxWidth: 500, maxHeight: 80) // Adjusted for the correct width of the footer
+            .frame(maxWidth: 500, maxHeight: 80) // Adjusted for the correct width and height of the footer
             .background(Color(hex: "404040"))
             .cornerRadius(10)
             .overlay(
