@@ -313,10 +313,6 @@ struct ContentView: View {
             .frame(maxWidth: 500, maxHeight: 80) // Adjusted for the correct width and height of the footer
             .background(Color(hex: "404040"))
             .cornerRadius(10)
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.gray, lineWidth: 0.5)
-            )
         }
     }
     
