@@ -182,6 +182,7 @@ struct ContentView: View {
                 // MARK: - Podcast Footer (Newly Added)
                 PodcastFooter() // This adds the PodcastFooter above the control buttons
                     .environmentObject(viewModel)
+                    .padding(.horizontal, -266)
                     .padding(.bottom, -45) // Add or reduce padding to move the footer up or down
                 // MARK: - Playback Controls (Always Visible, below the main content)
                 VStack {
