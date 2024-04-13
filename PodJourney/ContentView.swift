@@ -236,7 +236,7 @@ struct ContentView: View {
 
         var body: some View {
             HStack {
-                // Enlarged podcast image on the left
+                // Enlarged podcast image on the left with no left padding
                 if let imageUrl = viewModel.podcastImageUrl {
                     AsyncImage(url: imageUrl) { imagePhase in
                         switch imagePhase {
@@ -305,14 +305,15 @@ struct ContentView: View {
                         .frame(height: 5)
                     }
                 }
-                .padding(.leading, 8)
-                
+                .padding(.leading, 0) // Remove padding on the left of the VStack
+
                 Spacer()
             }
-            .padding()
-            .frame(maxWidth: 500, maxHeight: 80) // Adjusted for the correct width and height of the footer
+            .frame(maxWidth: 450, maxHeight: 80) // Adjusted for the correct width and height of the footer
             .background(Color(hex: "404040"))
             .cornerRadius(10)
+            // Adjust padding to align with the image
+            .padding(.leading, -8) // Adjust this value as needed to align with the left edge of the podcast image
         }
     }
     
