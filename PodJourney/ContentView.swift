@@ -243,15 +243,15 @@ struct ContentView: View {
         private let imageWidth: CGFloat = 80
         private let additionalSpacing: CGFloat = 10 // Space between the image and the start of the text
         private let animationDuration: Double = 15.0 // Slower animation
-        private let leftEdgeOffset: CGFloat = 20 // Offset from the left edge of the footer
         private let footerHeight: CGFloat = 80
         private let footerWidth: CGFloat = 450
         private let footerBackgroundColor = Color(hex: "404040")
+        private let cornerRadius: CGFloat = 8 // Slightly less round corners
 
         let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.yourdomain.yourapp", category: "PodcastFooter")
 
         var body: some View {
-            HStack {
+            HStack(spacing: 0) {
                 if let imageUrl = viewModel.podcastImageUrl {
                     AsyncImage(url: imageUrl) {
                         switch $0 {
@@ -266,15 +266,16 @@ struct ContentView: View {
                         }
                     }
                     .frame(width: imageWidth, height: imageWidth) // Image size
-                    .cornerRadius(5)
+                    .cornerRadius(cornerRadius)
+                    .padding(.leading, 8) // Ensure there's space on the left to prevent the image from being cut off
                 }
 
-                // Text container with offset
+                // Text container adjustment
                 ZStack(alignment: .leading) {
                     footerBackgroundColor
-                        .frame(width: footerWidth - imageWidth - leftEdgeOffset, height: footerHeight)
-                        .cornerRadius(10)
-                    
+                        .frame(width: footerWidth - imageWidth, height: footerHeight) // Adjusted to match the width of the footer minus the image width
+                        .cornerRadius(cornerRadius)
+
                     VStack(alignment: .leading, spacing: 4) {
                         GeometryReader { geometry in
                             ScrollView(.horizontal, showsIndicators: false) {
@@ -290,70 +291,71 @@ struct ContentView: View {
                                         updateScrolling(geometry.size)
                                     }
                             }
-                            .frame(width: geometry.size.width - (imageWidth + additionalSpacing + leftEdgeOffset), alignment: .leading)
+                            .frame(width: geometry.size.width, alignment: .leading)
                         }
-                    }
 
-                    Text(viewModel.podcastTitle ?? "Loading Podcast...")
-                        .font(.headline)
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                    
-                    VStack {
-                        HStack {
-                            Text(viewModel.currentTimeDisplay)
-                                .font(.caption)
-                                .frame(alignment: .leading)
+                        Text(viewModel.podcastTitle ?? "Loading Podcast...")
+                            .font(.headline)
+                            .lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .center)
 
-                            Spacer()
-                            
-                            Text(viewModel.remainingTimeDisplay)
-                                .font(.caption)
-                                .frame(alignment: .trailing)
-                        }
-                        
-                        CustomProgressBar(
-                            progress: $viewModel.uiPlaybackProgress,
-                            totalDuration: $viewModel.totalDuration,
-                            isUserInteracting: $viewModel.isUserInteracting,
-                            onSeek: { newProgress in
-                                Task {
-                                    await viewModel.seekToProgress(newProgress)
-                                }
-                            },
-                            onSeekStart: {
-                                viewModel.userDidStartInteracting()
-                            },
-                            onSeekEnd: { finalProgress in
-                                Task {
-                                    await viewModel.userDidEndInteracting(progress: finalProgress)
-                                }
+                        VStack {
+                            HStack {
+                                Text(viewModel.currentTimeDisplay)
+                                    .font(.caption)
+                                    .frame(alignment: .leading)
+
+                                Spacer()
+
+                                Text(viewModel.remainingTimeDisplay)
+                                    .font(.caption)
+                                    .frame(alignment: .trailing)
                             }
-                        )
-                        .frame(height: 5)
+
+                            CustomProgressBar(
+                                progress: $viewModel.uiPlaybackProgress,
+                                totalDuration: $viewModel.totalDuration,
+                                isUserInteracting: $viewModel.isUserInteracting,
+                                onSeek: { newProgress in
+                                    Task {
+                                        await viewModel.seekToProgress(newProgress)
+                                    }
+                                },
+                                onSeekStart: {
+                                    viewModel.userDidStartInteracting()
+                                },
+                                onSeekEnd: { finalProgress in
+                                    Task {
+                                        await viewModel.userDidEndInteracting(progress: finalProgress)
+                                    }
+                                }
+                            )
+                            .frame(height: 5)
+                        }
                     }
+                    .padding(.leading, additionalSpacing)
+                    .padding(.trailing, additionalSpacing)
                 }
-                .padding(.leading, 0)
 
                 Spacer()
             }
-            .frame(maxWidth: 450, maxHeight: 80)
-            .background(Color(hex: "404040"))
-            .cornerRadius(10)
-            .padding(.leading, -8)
+            .frame(width: footerWidth, height: footerHeight)
+            .background(footerBackgroundColor)
+            .cornerRadius(cornerRadius)
+            .padding(.horizontal, -8)
         }
 
         private func updateScrolling(_ size: CGSize) {
-                let textWidth = viewModel.widthOfString(viewModel.currentlyPlaying?.title ?? "", font: .systemFont(ofSize: NSFont.systemFontSize))
-                if textWidth > size.width - (imageWidth + additionalSpacing + leftEdgeOffset) {
-                    textOffset = textWidth  // Setup initial text offset
-                    animateText = true
-                } else {
-                    animateText = false
-                }
-                logger.log("Updated scrolling settings. Text width: \(textWidth), Container width: \(size.width), Should scroll: \(animateText)")
+            let textWidth = viewModel.widthOfString(viewModel.currentlyPlaying?.title ?? "", font: .systemFont(ofSize: NSFont.systemFontSize))
+            if textWidth > size.width - (imageWidth + additionalSpacing * 2) {
+                textOffset = textWidth // Setup initial text offset
+                animateText = true
+            } else {
+                animateText = false
             }
+            logger.log("Updated scrolling settings. Text width: \(textWidth), Container width: \(size.width), Should scroll: \(animateText)")
         }
+    }
     
     private func handleVolumeChange(newVolume: Double) {
             viewModel.adjustVolume(to: Float(newVolume))
