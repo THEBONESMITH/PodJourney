@@ -235,47 +235,39 @@ struct ContentView: View {
         @EnvironmentObject var viewModel: PodcastViewModel
 
         var body: some View {
-            VStack {
-                Divider()
-                HStack {
-                    if let imageUrl = viewModel.podcastImageUrl {
-                        AsyncImage(url: imageUrl) { imagePhase in
-                            switch imagePhase {
-                            case .success(let image):
-                                image.resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(width: 50, height: 50)
-                            case .failure(_):
-                                Image(systemName: "photo")
-                                    .frame(width: 50, height: 50)
-                            case .empty:
-                                ProgressView()
-                                    .frame(width: 50, height: 50)
-                            @unknown default:
-                                EmptyView()
-                            }
+            HStack {
+                // Enlarged podcast image on the left
+                if let imageUrl = viewModel.podcastImageUrl {
+                    AsyncImage(url: imageUrl) { imagePhase in
+                        switch imagePhase {
+                        case .success(let image):
+                            image.resizable()
+                                .aspectRatio(contentMode: .fill)
+                        case .failure(_):
+                            Image(systemName: "photo")
+                        case .empty:
+                            ProgressView()
+                        @unknown default:
+                            EmptyView()
                         }
-                        .padding(.leading, 8)
                     }
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(viewModel.podcastTitle ?? "Loading Podcast...")
-                            .font(.headline)
-                            .lineLimit(1)
-                        Text(viewModel.currentlyPlaying?.title ?? "Select an Episode...")
-                            .font(.subheadline)
-                            .lineLimit(1)
-                    }
-                    
-                    Spacer()
+                    .frame(width: 80, height: 80) // Enlarged image size
+                    .cornerRadius(5) // Assuming corner radius for styling
                 }
-                .padding(.horizontal, 8)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    // Switched positions so the episode title is on top
+                    Text(viewModel.currentlyPlaying?.title ?? "Select an Episode...")
+                        .font(.subheadline)
+                        .lineLimit(1)
+                    
+                    // Centered the podcast title
+                    Text(viewModel.podcastTitle ?? "Loading Podcast...")
+                        .font(.headline)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .center) // This will center the podcast title
 
-                HStack {
-                    Text(viewModel.currentTimeDisplay)
-                        .font(.caption)
-                        .frame(width: 50, alignment: .leading)
-
+                    // Progress bar right below the text, aligned to the left
                     CustomProgressBar(
                         progress: $viewModel.uiPlaybackProgress,
                         totalDuration: $viewModel.totalDuration,
@@ -295,15 +287,26 @@ struct ContentView: View {
                         }
                     )
                     .frame(height: 5)
+                }
+                .padding(.leading, 8)
 
+                Spacer()
+                
+                // Timer and Playback controls aligned to the right
+                VStack {
+                    Text(viewModel.currentTimeDisplay)
+                        .font(.caption)
+                        .frame(alignment: .leading)
+                    
+                    Spacer()
+                    
                     Text(viewModel.remainingTimeDisplay)
                         .font(.caption)
-                        .frame(width: 50, alignment: .trailing)
+                        .frame(alignment: .trailing)
                 }
-                .padding(.horizontal, 8)
             }
-            .padding(.vertical, 8)
-            .frame(maxWidth: 350) // Constrain the width of the footer
+            .padding()
+            .frame(maxWidth: 500, maxHeight: 80) // Adjusted for the correct width of the footer
             .background(Color(hex: "404040"))
             .cornerRadius(10)
             .overlay(
