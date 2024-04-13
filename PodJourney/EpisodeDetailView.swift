@@ -76,3 +76,21 @@ extension Date {
     }
 }
 
+extension Episode {
+    // Method to format the stored date string which is in the format "EEE, dd MMM yyyy HH:mm:ss Z"
+    var formattedDate: String {
+        let inputFormatter = DateFormatter()
+        inputFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
+        inputFormatter.locale = Locale(identifier: "en_US_POSIX") // Important for parsing English month names and the format correctly
+
+        let outputFormatter = DateFormatter()
+        outputFormatter.dateFormat = "d MMMM yyyy" // Target format "(D)D Month YYYY"
+        outputFormatter.locale = Locale(identifier: "en_US") // Ensure month names are in English
+
+        if let date = inputFormatter.date(from: self.date) {
+            return outputFormatter.string(from: date)
+        } else {
+            return "Unknown Date"
+        }
+    }
+}

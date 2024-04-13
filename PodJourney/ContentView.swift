@@ -246,12 +246,9 @@ struct ContentView: View {
         private let footerHeight: CGFloat = 80
         private let footerWidth: CGFloat = 450
         private let footerBackgroundColor = Color(hex: "404040")
-        private let cornerRadius: CGFloat = 8 // Slightly less round corners
-
-        let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.yourdomain.yourapp", category: "PodcastFooter")
 
         var body: some View {
-            HStack(spacing: 0) {
+            HStack(alignment: .top, spacing: 0) { // Make sure alignment and spacing are set properly
                 if let imageUrl = viewModel.podcastImageUrl {
                     AsyncImage(url: imageUrl) {
                         switch $0 {
@@ -265,16 +262,15 @@ struct ContentView: View {
                             EmptyView()
                         }
                     }
-                    .frame(width: imageWidth, height: imageWidth) // Image size
-                    .cornerRadius(cornerRadius)
-                    .padding(.leading, 8) // Ensure there's space on the left to prevent the image from being cut off
+                    .frame(width: imageWidth, height: imageWidth)
+                    .cornerRadius(5)
+                    .padding(.leading, 10) // Adjust padding to ensure the image is not cut off
                 }
 
-                // Text container adjustment
                 ZStack(alignment: .leading) {
                     footerBackgroundColor
-                        .frame(width: footerWidth - imageWidth, height: footerHeight) // Adjusted to match the width of the footer minus the image width
-                        .cornerRadius(cornerRadius)
+                        .frame(width: footerWidth - imageWidth, height: footerHeight)
+                        .cornerRadius(10)
 
                     VStack(alignment: .leading, spacing: 4) {
                         GeometryReader { geometry in
@@ -294,12 +290,19 @@ struct ContentView: View {
                             .frame(width: geometry.size.width, alignment: .leading)
                         }
 
-                        Text(viewModel.podcastTitle ?? "Loading Podcast...")
-                            .font(.headline)
-                            .lineLimit(1)
-                            .frame(maxWidth: .infinity, alignment: .center)
+                        if let currentEpisode = viewModel.currentlyPlaying {
+                            Text("\(viewModel.podcastTitle ?? "Unknown Podcast") — \(currentEpisode.formattedDate)")
+                                .font(.headline)
+                                .lineLimit(1)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                        } else {
+                            Text("Loading Podcast...")
+                                .font(.headline)
+                                .lineLimit(1)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                        }
 
-                        VStack {
+                        VStack(spacing: 4) { // Ensure spacing for layout
                             HStack {
                                 Text(viewModel.currentTimeDisplay)
                                     .font(.caption)
@@ -333,16 +336,14 @@ struct ContentView: View {
                             .frame(height: 5)
                         }
                     }
-                    .padding(.leading, additionalSpacing)
-                    .padding(.trailing, additionalSpacing)
+                    .padding(.horizontal, additionalSpacing)
                 }
 
                 Spacer()
             }
             .frame(width: footerWidth, height: footerHeight)
             .background(footerBackgroundColor)
-            .cornerRadius(cornerRadius)
-            .padding(.horizontal, -8)
+            .cornerRadius(10)
         }
 
         private func updateScrolling(_ size: CGSize) {
@@ -353,7 +354,6 @@ struct ContentView: View {
             } else {
                 animateText = false
             }
-            logger.log("Updated scrolling settings. Text width: \(textWidth), Container width: \(size.width), Should scroll: \(animateText)")
         }
     }
     
