@@ -248,7 +248,7 @@ struct ContentView: View {
         private let footerBackgroundColor = Color(hex: "404040")
 
         var body: some View {
-            HStack(alignment: .top, spacing: 0) { // Make sure alignment and spacing are set properly
+            HStack(alignment: .top, spacing: 0) {
                 if let imageUrl = viewModel.podcastImageUrl {
                     AsyncImage(url: imageUrl) {
                         switch $0 {
@@ -264,7 +264,7 @@ struct ContentView: View {
                     }
                     .frame(width: imageWidth, height: imageWidth)
                     .cornerRadius(5)
-                    .padding(.leading, 10) // Adjust padding to ensure the image is not cut off
+                    .padding(.leading, 10) // Ensure the image is not cut off
                 }
 
                 ZStack(alignment: .leading) {
@@ -276,8 +276,9 @@ struct ContentView: View {
                         GeometryReader { geometry in
                             ScrollView(.horizontal, showsIndicators: false) {
                                 Text(viewModel.currentlyPlaying?.title ?? "Select an Episode...")
-                                    .font(.subheadline)
+                                    .font(.headline) // Maintain font size as increased
                                     .lineLimit(1)
+                                    .padding(.vertical, 4) // Adjust padding to avoid cutting off text
                                     .offset(x: animateText ? -textOffset : 0)
                                     .animation(animateText ? .linear(duration: animationDuration).repeatForever(autoreverses: false) : nil, value: animateText)
                                     .onAppear {
@@ -302,7 +303,7 @@ struct ContentView: View {
                                 .frame(maxWidth: .infinity, alignment: .center)
                         }
 
-                        VStack(spacing: 4) { // Ensure spacing for layout
+                        VStack(spacing: 4) {
                             HStack {
                                 Text(viewModel.currentTimeDisplay)
                                     .font(.caption)
