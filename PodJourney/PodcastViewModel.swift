@@ -74,6 +74,8 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     @Published var isPlayButtonEnabled: Bool = false
     @Published var currentlyPlayingEpisode: Episode?
     @Published var isEpisodeLoaded = false
+    @Published var isSearching = false
+    @Published var errorMessage: String?
     private var subscriptions = Set<AnyCancellable>()
     private var playbackTimeObserverToken: AVPlayerItem?
     private let episodeSelectionSubject = PassthroughSubject<Episode, Never>()
@@ -85,11 +87,13 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     private var searchCancellable: AnyCancellable?
     private var playerItemStatusObserver: NSKeyValueObservation?
     private var playerItemObserver: NSKeyValueObservation?
+    private var searchDelayPublisher: AnyPublisher<String, Never>?
     weak var delegate: MediaPlayerDelegate?
     var timeObserverToken: Any?
     var shouldAutoPlay = false
     var player: AVPlayer = AVPlayer()
     var mediaPlayer = MediaPlayer()
+    var searchSubject = PassthroughSubject<String, Never>() // Public subject to send search terms
     
     init(mediaPlayer: MediaPlayer) {
             self.mediaPlayer = mediaPlayer
@@ -103,6 +107,8 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
             setupTimeUpdates()
             setupPlayer()
             self.player = AVPlayer()
+            setupSearchPublisher()
+            setupSearchSubscriber()
         }
     
     override init() {
@@ -110,6 +116,26 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
             super.init()
             setupPlayer()
             print("PodcastViewModel initialized with direct AVPlayer control.")
+        }
+    
+    private func setupSearchSubscriber() {
+            searchCancellable = searchSubject
+                .debounce(for: .milliseconds(500), scheduler: DispatchQueue.main)
+                .removeDuplicates() // Optional: Prevents searching the same term repeatedly
+                .sink(receiveValue: { [weak self] query in
+                    self?.searchPodcasts(with: query)
+                })
+        }
+    
+    func setupSearchPublisher() {
+            let publisher = PassthroughSubject<String, Never>()
+            searchDelayPublisher = publisher
+                .debounce(for: .milliseconds(500), scheduler: DispatchQueue.main)
+                .eraseToAnyPublisher()
+            searchDelayPublisher?
+                .sink(receiveValue: { [weak self] query in
+                    self?.searchPodcasts(with: query)
+                }).store(in: &cancellables)
         }
     
     // Calculate the width of the text using the NSFont (macOS)
@@ -474,37 +500,43 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     }
     
     func searchPodcasts(with query: String) {
-            // Cancel any existing search request
-            searchCancellable?.cancel()
-            
-            // Ensure that the query is not empty and is not just whitespace
-            let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmedQuery.isEmpty else {
-                self.searchResults = []
-                return
-            }
-            
-            let urlString = "https://itunes.apple.com/search?media=podcast&term=\(trimmedQuery.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
-            guard let url = URL(string: urlString) else { return }
-
-            // Perform the search with a delay, throttling the search requests
-            searchCancellable = URLSession.shared.dataTaskPublisher(for: url)
-                .map(\.data)
-                .decode(type: SearchResponse.self, decoder: JSONDecoder())
-                .receive(on: DispatchQueue.main)
-                .sink(receiveCompletion: { completion in
-                    switch completion {
-                    case .finished:
-                        break
-                    case .failure(let error):
-                        print(error.localizedDescription)
-                        // Update UI to show error message
-                    }
-                }, receiveValue: { [weak self] response in
-                    self?.searchResults = response.results
-                    // Update UI to show search results
-                })
+        print("searchPodcasts called with query: \(query)")
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedQuery.isEmpty else {
+            print("Query is empty after trimming.")
+            self.searchResults = []
+            self.isSearching = false
+            return
         }
+
+        self.isSearching = true
+        let encodedQuery = trimmedQuery.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let urlString = "https://itunes.apple.com/search?media=podcast&term=\(encodedQuery)"
+        print("Requesting URL: \(urlString)") // Debug print statement
+
+        guard let url = URL(string: urlString) else {
+            print("Failed to create URL from string: \(urlString)")
+            return
+        }
+
+        // Perform the search
+        searchCancellable = URLSession.shared.dataTaskPublisher(for: url)
+            .map(\.data)
+            .decode(type: SearchResponse.self, decoder: JSONDecoder())
+            .receive(on: DispatchQueue.main)
+            .sink(receiveCompletion: { [weak self] completion in
+                switch completion {
+                case .finished:
+                    self?.isSearching = false
+                case .failure(let error):
+                    print("Error fetching data: \(error.localizedDescription)")
+                    self?.isSearching = false
+                }
+            }, receiveValue: { [weak self] response in
+                self?.searchResults = response.results
+                print("Received \(response.results.count) results")
+            })
+    }
     
     struct SearchResponse: Decodable {
         let results: [Podcast]

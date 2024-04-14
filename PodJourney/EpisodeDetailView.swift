@@ -23,10 +23,11 @@ struct Episode: Identifiable, Hashable {
     var rating: String?
     var size: Int64?
     var duration: String
+    var chapterImageUrl: URL?
     
-    init(id: UUID = UUID(), title: String, link: String, description: String, attributedDescription: AttributedString? = nil, mediaURL: URL, date: String, author: String? = nil, website: URL? = nil, category: String? = nil, rating: String? = nil, size: Int64? = nil, duration: String) {
+    init(id: UUID = UUID(), title: String, link: String, description: String, attributedDescription: AttributedString? = nil, mediaURL: URL, date: String, author: String? = nil, website: URL? = nil, category: String? = nil, rating: String? = nil, size: Int64? = nil, duration: String, chapterImageUrl: URL? = nil) {
         self.id = id
-        self.url = mediaURL // Assuming you want to initialize `url` with `mediaURL`
+        self.url = mediaURL // Initializing `url` with `mediaURL`
         self.title = title
         self.link = link
         self.description = description
@@ -39,7 +40,9 @@ struct Episode: Identifiable, Hashable {
         self.rating = rating
         self.size = size
         self.duration = duration
+        self.chapterImageUrl = chapterImageUrl
     }
+
     
     // Hashable and Equatable conformances
     static func == (lhs: Episode, rhs: Episode) -> Bool {

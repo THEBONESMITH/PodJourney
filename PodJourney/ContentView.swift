@@ -110,7 +110,7 @@ struct ContentView: View {
                     VStack { // This VStack will contain the search view, episode details, or the episodes list
                         if showingSearch {
                             // MARK: - Search View (when search is active)
-                            SearchView(showingSearch: $showingSearch, viewModel: viewModel)
+                            SearchView(showingSearch: $showingSearch)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                         } else if showingEpisodeDetail, let episode = selectedEpisode {
                             // MARK: - Episode Details View with Back Button
@@ -251,9 +251,26 @@ struct ContentView: View {
         
         var body: some View {
             HStack(alignment: .top, spacing: 0) {
-                if let imageUrl = viewModel.podcastImageUrl {
-                    AsyncImage(url: imageUrl) {
-                        switch $0 {
+                // Display chapter art if available, else podcast image
+                if let chapterImageUrl = viewModel.currentlyPlaying?.chapterImageUrl {
+                    AsyncImage(url: chapterImageUrl) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image.resizable()
+                        case .failure:
+                            Image(systemName: "photo")
+                        case .empty:
+                            ProgressView()
+                        @unknown default:
+                            EmptyView()
+                        }
+                    }
+                    .frame(width: imageWidth, height: imageWidth)
+                    .cornerRadius(5)
+                    .padding(.leading, 10)
+                } else if let imageUrl = viewModel.podcastImageUrl {
+                    AsyncImage(url: imageUrl) { phase in
+                        switch phase {
                         case .success(let image):
                             image.resizable()
                         case .failure:
@@ -274,13 +291,13 @@ struct ContentView: View {
                         .frame(width: footerWidth - imageWidth, height: footerHeight)
                         .cornerRadius(10)
                     
-                    VStack(alignment: .leading, spacing: 10) { // Increased spacing to prevent clipping
+                    VStack(alignment: .leading, spacing: 10) {
                         GeometryReader { geometry in
                             ScrollView(.horizontal, showsIndicators: false) {
-                                Text(viewModel.currentlyPlaying?.title ?? "Select an Episode...")
+                                Text(viewModel.currentlyPlaying?.title ?? "")
                                     .font(.headline)
                                     .lineLimit(1)
-                                    .padding(.vertical, 4) // Adjust padding to align text
+                                    .padding(.vertical, 4)
                                     .offset(x: animateText ? -textOffset : 0)
                                     .animation(animateText ? .linear(duration: animationDuration).repeatForever(autoreverses: false) : nil, value: animateText)
                                     .onAppear {
@@ -461,29 +478,45 @@ struct ContentView: View {
     struct SearchView: View {
         @Binding var showingSearch: Bool
         @State private var searchText = ""
-        @ObservedObject var viewModel: PodcastViewModel
+        @EnvironmentObject var viewModel: PodcastViewModel  // This will obtain the viewModel from the environment.
 
         var body: some View {
-                VStack {
-                    HStack {
-                        TextField("Search...", text: $searchText)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .frame(maxWidth: 200) // Adjust this value as needed
-                            .padding(.leading, 10) // Match this padding with the back button's horizontal padding to align them
-                            .onSubmit { // Call search when the user submits the text
-                                viewModel.searchPodcasts(with: searchText)
-                            }
-                        Spacer() // This will push the TextField to the left
+            VStack {
+                TextField("Search...", text: $searchText)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .onChange(of: searchText) { newValue in
+                        viewModel.searchSubject.send(newValue) // Triggering the search
                     }
-                    .padding(.top, 25) // Adjust top padding to move the search bar up
 
-                    Spacer() // This will push all content to the top
-
-                    // The rest of your view content here
+                if viewModel.isSearching {
+                    ProgressView()
+                } else if let errorMessage = viewModel.errorMessage {
+                    Text(errorMessage).foregroundColor(.red)
+                } else {
+                    List(viewModel.searchResults, id: \.id) { podcast in
+                        HStack {
+                            AsyncImage(url: URL(string: podcast.artworkUrl100)) { imagePhase in
+                                switch imagePhase {
+                                case .success(let image):
+                                    image.resizable().aspectRatio(contentMode: .fit).frame(width: 50, height: 50)
+                                case .failure(_):
+                                    Image(systemName: "photo").frame(width: 50, height: 50)
+                                case .empty:
+                                    ProgressView().frame(width: 50, height: 50)
+                                @unknown default:
+                                    EmptyView()
+                                }
+                            }
+                            VStack(alignment: .leading) {
+                                Text(podcast.trackName).fontWeight(.bold)
+                                Text(podcast.artistName).font(.subheadline).foregroundColor(.secondary)
+                            }
+                        }
+                    }
                 }
-                .padding(.horizontal) // Add horizontal padding to the VStack if needed
             }
         }
+    }
     
     struct CustomProgressBar: View {
         @Binding var progress: Double
