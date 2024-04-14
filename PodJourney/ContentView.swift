@@ -476,51 +476,113 @@ struct ContentView: View {
         }
     
     struct SearchView: View {
-        @Binding var showingSearch: Bool  // If you need to control visibility of this view externally.
-        @State private var searchText = ""
+        @Binding var showingSearch: Bool
         @EnvironmentObject var viewModel: PodcastViewModel
-
+        @State private var searchText = ""
+        @State private var selectedPodcast: Podcast?  // State to track selected podcast
+        
         var body: some View {
             VStack {
                 TextField("Search...", text: $searchText)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .onChange(of: searchText) { oldValue, newValue in
+                    .onChange(of: searchText) { newValue in
                         viewModel.searchSubject.send(newValue)
                     }
-
+                
                 if viewModel.isSearching {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle())
                         .overlay(Text("Searching...").foregroundColor(.gray))
                 }
-
+                
                 if let errorMessage = viewModel.errorMessage, !errorMessage.isEmpty {
                     Text(errorMessage).foregroundColor(.red)
                 }
-
+                
                 resultsList
             }
         }
-
+        
         var resultsList: some View {
-            List(viewModel.searchResults, id: \.id) { podcast in
-                HStack {
-                    AsyncImage(url: URL(string: podcast.artworkUrl100)) { imagePhase in
-                        switch imagePhase {
-                        case .success(let image):
-                            image.resizable().aspectRatio(contentMode: .fit).frame(width: 50, height: 50)
-                        case .failure(_):
-                            Image(systemName: "photo").frame(width: 50, height: 50)
-                        case .empty:
-                            ProgressView().frame(width: 50, height: 50)
-                        @unknown default:
-                            EmptyView()
+            ScrollView {
+                ForEach(viewModel.searchResults, id: \.id) { podcast in
+                    PodcastRow(podcast: podcast, selectedPodcast: $selectedPodcast, viewModel: viewModel)
+                        .padding(.vertical, 4)
+                        .onTapGesture {
+                            self.selectedPodcast = podcast
                         }
+                }
+            }
+        }
+        
+        struct PodcastRow: View {
+            let podcast: Podcast
+            @Binding var selectedPodcast: Podcast?
+            var viewModel: PodcastViewModel
+            
+            @State private var isHovering = false
+            
+            let highlightColor = Color(red: 27 / 255.0, green: 84 / 255.0, blue: 199 / 255.0)
+            let hoverColor = Color.gray.opacity(0.2)
+            
+            var body: some View {
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack {
+                        AsyncImage(url: URL(string: podcast.artworkUrl100)) { imagePhase in
+                            switch imagePhase {
+                            case .success(let image):
+                                image.resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 100, height: 100)
+                            case .failure(_):
+                                Image(systemName: "photo")
+                            case .empty:
+                                ProgressView()
+                            @unknown default:
+                                EmptyView()
+                            }
+                        }
+                        .frame(width: 100, height: 100)
+                        .cornerRadius(8)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Spacer(minLength: 6)
+                            Text(podcast.trackName)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                                .lineLimit(2)
+                            Text(podcast.artistName)
+                                .font(.caption)
+                                .foregroundColor(.white)
+                                .lineLimit(2)
+                            Spacer(minLength: 6)
+                        }
+                        Spacer()
+                        
+                        VStack {
+                            if isHovering {
+                                Button(action: {
+                                    // Define action for play button
+                                }) {
+                                    Image(systemName: "play.circle")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 30, height: 30)
+                                        .foregroundColor(.white)
+                                }
+                                .buttonStyle(BorderlessButtonStyle())
+                            }
+                            Spacer()
+                        }
+                        .padding(.trailing, 20) // Add more padding to push the buttons further to the right
                     }
-                    VStack(alignment: .leading) {
-                        Text(podcast.trackName).fontWeight(.bold)
-                        Text(podcast.artistName).font(.subheadline).foregroundColor(.secondary)
-                    }
+                    .padding(.horizontal, 8)
+                }
+                .frame(height: 112)
+                .background(RoundedRectangle(cornerRadius: 8).fill(selectedPodcast?.id == podcast.id ? highlightColor : (isHovering ? hoverColor : Color.clear)))
+                .cornerRadius(8)
+                .onHover { hover in
+                    self.isHovering = hover
                 }
             }
         }
