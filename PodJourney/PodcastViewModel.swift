@@ -140,45 +140,52 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         }
     
     func searchPodcasts(with query: String) {
-        print("Searching for query: \(query)")
-            searchCancellable?.cancel()  // Ensure to cancel the existing request before starting a new one
+        searchCancellable?.cancel()  // Ensure to cancel the existing request before starting a new one
 
-            let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmedQuery.isEmpty else {
-                self.searchResults = []
-                self.isSearching = false
-                return
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedQuery.isEmpty else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { // Delay clearing results
+                self.updateSearchResults(with: [])
             }
+            self.isSearching = false
+            return
+        }
 
-            self.isSearching = true
-            let encodedQuery = trimmedQuery.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-            let urlString = "https://itunes.apple.com/search?media=podcast&term=\(encodedQuery)"
-            guard let url = URL(string: urlString) else {
-                print("Invalid URL: \(urlString)")
-                self.isSearching = false
-                return
-            }
-            
-            print("Making network request to URL: \(url)")
+        self.isSearching = true
+        let encodedQuery = trimmedQuery.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let urlString = "https://itunes.apple.com/search?media=podcast&term=\(encodedQuery)"
+        guard let url = URL(string: urlString) else {
+            self.isSearching = false
+            return
+        }
+
         searchCancellable = URLSession.shared.dataTaskPublisher(for: url)
             .map(\.data)
             .decode(type: SearchResponse.self, decoder: JSONDecoder())
             .receive(on: DispatchQueue.main)
             .sink(receiveCompletion: { [weak self] completion in
+                guard let self = self else { return }
                 switch completion {
                 case .finished:
-                    print("Search completed.")
+                    self.isSearching = false
                 case .failure(let error):
-                    self?.errorMessage = "Failed: \(error.localizedDescription)"
-                    print("Search failed with error: \(error)")
-                    self?.isSearching = false
+                    self.errorMessage = error.localizedDescription
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1) { // Delay clearing results
+                        self.updateSearchResults(with: [])
+                    }
+                    self.isSearching = false
                 }
             }, receiveValue: { [weak self] response in
-                print("Received results: \(response.results.count)")
-                self?.searchResults = response.results
-                self?.isSearching = false
+                guard let self = self else { return }
+                self.updateSearchResults(with: response.results)
             })
+    }
+
+    private func updateSearchResults(with results: [Podcast]) {
+        withAnimation {
+            self.searchResults = results
         }
+    }
     
     struct SearchResponse: Decodable {
         let results: [Podcast]

@@ -476,7 +476,7 @@ struct ContentView: View {
         }
     
     struct SearchView: View {
-        @Binding var showingSearch: Bool
+        @Binding var showingSearch: Bool  // If you need to control visibility of this view externally.
         @State private var searchText = ""
         @EnvironmentObject var viewModel: PodcastViewModel
 
@@ -484,34 +484,42 @@ struct ContentView: View {
             VStack {
                 TextField("Search...", text: $searchText)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .onChange(of: searchText) { oldText, newText in
-                        viewModel.searchSubject.send(newText)
+                    .onChange(of: searchText) { oldValue, newValue in
+                        viewModel.searchSubject.send(newValue)
                     }
 
                 if viewModel.isSearching {
                     ProgressView()
-                } else if let errorMessage = viewModel.errorMessage {
+                        .progressViewStyle(CircularProgressViewStyle())
+                        .overlay(Text("Searching...").foregroundColor(.gray))
+                }
+
+                if let errorMessage = viewModel.errorMessage, !errorMessage.isEmpty {
                     Text(errorMessage).foregroundColor(.red)
-                } else {
-                    List(viewModel.searchResults, id: \.id) { podcast in
-                        HStack {
-                            AsyncImage(url: URL(string: podcast.artworkUrl100)) { imagePhase in
-                                switch imagePhase {
-                                case .success(let image):
-                                    image.resizable().aspectRatio(contentMode: .fit).frame(width: 50, height: 50)
-                                case .failure(_):
-                                    Image(systemName: "photo").frame(width: 50, height: 50)
-                                case .empty:
-                                    ProgressView().frame(width: 50, height: 50)
-                                @unknown default:
-                                    EmptyView()
-                                }
-                            }
-                            VStack(alignment: .leading) {
-                                Text(podcast.trackName).fontWeight(.bold)
-                                Text(podcast.artistName).font(.subheadline).foregroundColor(.secondary)
-                            }
+                }
+
+                resultsList
+            }
+        }
+
+        var resultsList: some View {
+            List(viewModel.searchResults, id: \.id) { podcast in
+                HStack {
+                    AsyncImage(url: URL(string: podcast.artworkUrl100)) { imagePhase in
+                        switch imagePhase {
+                        case .success(let image):
+                            image.resizable().aspectRatio(contentMode: .fit).frame(width: 50, height: 50)
+                        case .failure(_):
+                            Image(systemName: "photo").frame(width: 50, height: 50)
+                        case .empty:
+                            ProgressView().frame(width: 50, height: 50)
+                        @unknown default:
+                            EmptyView()
                         }
+                    }
+                    VStack(alignment: .leading) {
+                        Text(podcast.trackName).fontWeight(.bold)
+                        Text(podcast.artistName).font(.subheadline).foregroundColor(.secondary)
                     }
                 }
             }
