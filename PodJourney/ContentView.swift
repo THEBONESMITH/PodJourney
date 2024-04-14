@@ -238,15 +238,17 @@ struct ContentView: View {
         @EnvironmentObject var viewModel: PodcastViewModel
         @State private var animateText: Bool = false
         @State private var textOffset: CGFloat = 0
-
-        // Configuration constants
+        @State private var animationKey: Int = 0  // New state to force reanimation
+        
         private let imageWidth: CGFloat = 80
-        private let additionalSpacing: CGFloat = 10 // Space between the image and the start of the text
-        private let animationDuration: Double = 15.0 // Slower animation
+        private let additionalSpacing: CGFloat = 10
+        private let animationDuration: Double = 15.0
         private let footerHeight: CGFloat = 80
         private let footerWidth: CGFloat = 450
         private let footerBackgroundColor = Color(hex: "404040")
-
+        
+        private let logger = Logger(subsystem: "com.yourdomain.yourapp", category: "PodcastFooter")
+        
         var body: some View {
             HStack(alignment: .top, spacing: 0) {
                 if let imageUrl = viewModel.podcastImageUrl {
@@ -264,58 +266,51 @@ struct ContentView: View {
                     }
                     .frame(width: imageWidth, height: imageWidth)
                     .cornerRadius(5)
-                    .padding(.leading, 10) // Ensure the image is not cut off
+                    .padding(.leading, 10)
                 }
-
+                
                 ZStack(alignment: .leading) {
                     footerBackgroundColor
                         .frame(width: footerWidth - imageWidth, height: footerHeight)
                         .cornerRadius(10)
-
-                    VStack(alignment: .leading, spacing: 4) {
+                    
+                    VStack(alignment: .leading, spacing: 10) { // Increased spacing to prevent clipping
                         GeometryReader { geometry in
                             ScrollView(.horizontal, showsIndicators: false) {
                                 Text(viewModel.currentlyPlaying?.title ?? "Select an Episode...")
-                                    .font(.headline) // Maintain font size as increased
+                                    .font(.headline)
                                     .lineLimit(1)
-                                    .padding(.vertical, 4) // Adjust padding to avoid cutting off text
+                                    .padding(.vertical, 4) // Adjust padding to align text
                                     .offset(x: animateText ? -textOffset : 0)
                                     .animation(animateText ? .linear(duration: animationDuration).repeatForever(autoreverses: false) : nil, value: animateText)
                                     .onAppear {
-                                        updateScrolling(geometry.size)
+                                        setupTextAnimation(with: geometry.size.width)
                                     }
                                     .onChange(of: viewModel.currentlyPlaying?.title) { _, _ in
-                                        updateScrolling(geometry.size)
+                                        setupTextAnimation(with: geometry.size.width)
                                     }
                             }
                             .frame(width: geometry.size.width, alignment: .leading)
                         }
-
-                        if let currentEpisode = viewModel.currentlyPlaying {
-                            Text("\(viewModel.podcastTitle ?? "Unknown Podcast") — \(currentEpisode.formattedDate)")
-                                .font(.headline)
-                                .lineLimit(1)
-                                .frame(maxWidth: .infinity, alignment: .center)
-                        } else {
-                            Text("Loading Podcast...")
-                                .font(.headline)
-                                .lineLimit(1)
-                                .frame(maxWidth: .infinity, alignment: .center)
-                        }
-
+                        
+                        Text("\(viewModel.podcastTitle ?? "Unknown Podcast") — \(viewModel.currentlyPlaying?.formattedDate ?? "Unknown Date")")
+                            .font(.headline)
+                            .lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                        
                         VStack(spacing: 4) {
                             HStack {
                                 Text(viewModel.currentTimeDisplay)
                                     .font(.caption)
                                     .frame(alignment: .leading)
-
+                                
                                 Spacer()
-
+                                
                                 Text(viewModel.remainingTimeDisplay)
                                     .font(.caption)
                                     .frame(alignment: .trailing)
                             }
-
+                            
                             CustomProgressBar(
                                 progress: $viewModel.uiPlaybackProgress,
                                 totalDuration: $viewModel.totalDuration,
@@ -339,24 +334,30 @@ struct ContentView: View {
                     }
                     .padding(.horizontal, additionalSpacing)
                 }
-
+                
                 Spacer()
             }
             .frame(width: footerWidth, height: footerHeight)
             .background(footerBackgroundColor)
             .cornerRadius(10)
         }
-
-        private func updateScrolling(_ size: CGSize) {
-            let textWidth = viewModel.widthOfString(viewModel.currentlyPlaying?.title ?? "", font: .systemFont(ofSize: NSFont.systemFontSize))
-            if textWidth > size.width - (imageWidth + additionalSpacing * 2) {
-                textOffset = textWidth // Setup initial text offset
-                animateText = true
-            } else {
-                animateText = false
+        
+        private func setupTextAnimation(with containerWidth: CGFloat) {
+                let textWidth = viewModel.widthOfString(viewModel.currentlyPlaying?.title ?? "", font: .systemFont(ofSize: NSFont.systemFontSize))
+                if textWidth > containerWidth - (imageWidth + additionalSpacing * 2) {
+                    textOffset = textWidth
+                    animateText = false  // Stop the current animation
+                    logger.log("Preparing to start text animation after delay...")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                        self.animationKey += 1  // Increment to trigger a new animation
+                        self.animateText = true
+                        self.logger.log("Text animation started.")
+                    }
+                } else {
+                    animateText = false
+                }
             }
         }
-    }
     
     private func handleVolumeChange(newVolume: Double) {
             viewModel.adjustVolume(to: Float(newVolume))
