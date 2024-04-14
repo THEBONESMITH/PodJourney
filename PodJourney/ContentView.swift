@@ -478,14 +478,14 @@ struct ContentView: View {
     struct SearchView: View {
         @Binding var showingSearch: Bool
         @State private var searchText = ""
-        @EnvironmentObject var viewModel: PodcastViewModel  // This will obtain the viewModel from the environment.
+        @EnvironmentObject var viewModel: PodcastViewModel
 
         var body: some View {
             VStack {
                 TextField("Search...", text: $searchText)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .onChange(of: searchText) { newValue in
-                        viewModel.searchSubject.send(newValue) // Triggering the search
+                    .onChange(of: searchText) { oldText, newText in
+                        viewModel.searchSubject.send(newText)
                     }
 
                 if viewModel.isSearching {

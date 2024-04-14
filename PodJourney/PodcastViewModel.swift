@@ -80,7 +80,6 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     private var playbackTimeObserverToken: AVPlayerItem?
     private let episodeSelectionSubject = PassthroughSubject<Episode, Never>()
     private let debounceInterval = 0.1
-    private var cancellables = Set<AnyCancellable>()
     private let seekProgressSubject = PassthroughSubject<Double, Never>()
     private var lastUpdateTime: Date?
     private var timeFormatCache: [Double: String] = [:]
@@ -93,7 +92,8 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     var shouldAutoPlay = false
     var player: AVPlayer = AVPlayer()
     var mediaPlayer = MediaPlayer()
-    var searchSubject = PassthroughSubject<String, Never>() // Public subject to send search terms
+    var cancellables = Set<AnyCancellable>()
+    let searchSubject = PassthroughSubject<String, Never>()
     
     init(mediaPlayer: MediaPlayer) {
             self.mediaPlayer = mediaPlayer
@@ -119,13 +119,14 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         }
     
     private func setupSearchSubscriber() {
-            searchCancellable = searchSubject
-                .debounce(for: .milliseconds(500), scheduler: DispatchQueue.main)
-                .removeDuplicates() // Optional: Prevents searching the same term repeatedly
-                .sink(receiveValue: { [weak self] query in
-                    self?.searchPodcasts(with: query)
-                })
-        }
+        searchSubject
+            .debounce(for: .milliseconds(500), scheduler: DispatchQueue.main)
+            .removeDuplicates()
+            .sink(receiveValue: { [weak self] query in
+                self?.searchPodcasts(with: query)
+            })
+            .store(in: &cancellables)
+    }
     
     func setupSearchPublisher() {
             let publisher = PassthroughSubject<String, Never>()
@@ -137,6 +138,51 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
                     self?.searchPodcasts(with: query)
                 }).store(in: &cancellables)
         }
+    
+    func searchPodcasts(with query: String) {
+        print("Searching for query: \(query)")
+            searchCancellable?.cancel()  // Ensure to cancel the existing request before starting a new one
+
+            let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedQuery.isEmpty else {
+                self.searchResults = []
+                self.isSearching = false
+                return
+            }
+
+            self.isSearching = true
+            let encodedQuery = trimmedQuery.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+            let urlString = "https://itunes.apple.com/search?media=podcast&term=\(encodedQuery)"
+            guard let url = URL(string: urlString) else {
+                print("Invalid URL: \(urlString)")
+                self.isSearching = false
+                return
+            }
+            
+            print("Making network request to URL: \(url)")
+        searchCancellable = URLSession.shared.dataTaskPublisher(for: url)
+            .map(\.data)
+            .decode(type: SearchResponse.self, decoder: JSONDecoder())
+            .receive(on: DispatchQueue.main)
+            .sink(receiveCompletion: { [weak self] completion in
+                switch completion {
+                case .finished:
+                    print("Search completed.")
+                case .failure(let error):
+                    self?.errorMessage = "Failed: \(error.localizedDescription)"
+                    print("Search failed with error: \(error)")
+                    self?.isSearching = false
+                }
+            }, receiveValue: { [weak self] response in
+                print("Received results: \(response.results.count)")
+                self?.searchResults = response.results
+                self?.isSearching = false
+            })
+        }
+    
+    struct SearchResponse: Decodable {
+        let results: [Podcast]
+    }
     
     // Calculate the width of the text using the NSFont (macOS)
     func widthOfString(_ string: String, font: NSFont) -> CGFloat {
@@ -497,49 +543,6 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         // Assuming seekToProgress is an async function
         await seekToProgress(progress)
         // Additional logic...
-    }
-    
-    func searchPodcasts(with query: String) {
-        print("searchPodcasts called with query: \(query)")
-        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedQuery.isEmpty else {
-            print("Query is empty after trimming.")
-            self.searchResults = []
-            self.isSearching = false
-            return
-        }
-
-        self.isSearching = true
-        let encodedQuery = trimmedQuery.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        let urlString = "https://itunes.apple.com/search?media=podcast&term=\(encodedQuery)"
-        print("Requesting URL: \(urlString)") // Debug print statement
-
-        guard let url = URL(string: urlString) else {
-            print("Failed to create URL from string: \(urlString)")
-            return
-        }
-
-        // Perform the search
-        searchCancellable = URLSession.shared.dataTaskPublisher(for: url)
-            .map(\.data)
-            .decode(type: SearchResponse.self, decoder: JSONDecoder())
-            .receive(on: DispatchQueue.main)
-            .sink(receiveCompletion: { [weak self] completion in
-                switch completion {
-                case .finished:
-                    self?.isSearching = false
-                case .failure(let error):
-                    print("Error fetching data: \(error.localizedDescription)")
-                    self?.isSearching = false
-                }
-            }, receiveValue: { [weak self] response in
-                self?.searchResults = response.results
-                print("Received \(response.results.count) results")
-            })
-    }
-    
-    struct SearchResponse: Decodable {
-        let results: [Podcast]
     }
     
     func pausePlayback() {
