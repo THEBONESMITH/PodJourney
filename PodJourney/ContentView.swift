@@ -53,17 +53,12 @@ struct ContentView: View {
     
     // Define the body property of a SwiftUI View
     var body: some View {
-        // Button("Play Audio") {
-        // viewModel.playSampleAudio()
-        // }
         HStack { // Start of the main horizontal layout
-            // MARK: - Sidebar
+            // Sidebar
             VStack {
                 if showingSearch {
-                    // MARK: - Back Button (when search is active)
                     Button(action: {
                         self.showingSearch.toggle()
-                        // Simulate tab press after a delay
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                             simulateTabPress()
                         }
@@ -75,9 +70,8 @@ struct ContentView: View {
                             .padding()
                             .foregroundColor(.gray)
                     }
-                    .buttonStyle(PlainButtonStyle()) // Make the button's background transparent
+                    .buttonStyle(PlainButtonStyle())
                 } else {
-                    // MARK: - Search Button (default state)
                     Button(action: {
                         self.showingSearch.toggle()
                     }) {
@@ -88,36 +82,51 @@ struct ContentView: View {
                             .padding()
                             .foregroundColor(.gray)
                     }
-                    .buttonStyle(PlainButtonStyle()) // Make the button's background transparent
+                    .buttonStyle(PlainButtonStyle())
                 }
                 Spacer()
             }
             .frame(width: 90)
-            .background(Color.gray.opacity(0)) // Sidebar background color
-            
-            Divider() // Separator between the sidebar and main content
-            
-            // MARK: - Main Content Area
+            .background(Color.gray.opacity(0))
+
+            Divider()
+
+            // Main Content Area
             VStack {
-                HStack { // This HStack contains the podcast image/title on the left side and content area on the right
-                    if !showingSearch { // Only show the podcast image and title if the search view is not active
+                HStack {
+                    if !showingSearch {
                         podcastImageAndTitleView
                             .frame(width: 300)
                         
                         Divider()
                     }
                     
-                    VStack { // This VStack will contain the search view, episode details, or the episodes list
+                    VStack {
                         if showingSearch {
-                            // MARK: - Search View (when search is active)
-                            SearchView(showingSearch: $showingSearch)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            HStack { // This HStack contains the search results and the custom list
+                                SearchView(showingSearch: $showingSearch)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                
+                                Divider() // Vertical divider between search results and the custom list
+
+                                // Custom List appears to the right when search is active
+                                VStack {
+                                    Text("Search Results")
+                                        .font(.headline)
+                                        .padding()
+                                    
+                                    List {
+                                        // List can be populated dynamically based on search results
+                                        Text("No results yet")
+                                            .foregroundColor(.gray)
+                                    }
+                                }
+                                .frame(width: 200) // Set the width of the custom list panel
+                            }
                         } else if showingEpisodeDetail, let episode = selectedEpisode {
-                            // MARK: - Episode Details View with Back Button
                             VStack(alignment: .leading) {
                                 Button(action: {
                                     self.showingEpisodeDetail = false
-                                    // Add simulated tab press immediately after toggling the detail view
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                                         simulateTabPress()
                                     }
@@ -127,20 +136,19 @@ struct ContentView: View {
                                             .resizable()
                                             .scaledToFit()
                                             .foregroundColor(.gray)
-                                            .frame(width: 30, height: 30) // Adjust for larger button
-                                            .padding(.top, 25) // Increase the top padding to move the button down
+                                            .frame(width: 30, height: 30)
+                                            .padding(.top, 25)
                                             .padding(.leading)
                                     }
                                 }
                                 .buttonStyle(PlainButtonStyle())
-                                .padding(.leading, 5) // Adjust padding as needed to position the back button
+                                .padding(.leading, 5)
                                 
-                                EpisodeDetailSubView(episode: episode) // Display episode details
+                                EpisodeDetailSubView(episode: episode)
                                     .padding(.leading)
                             }
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                         } else {
-                            // MARK: - Episodes List View (default state for main content area)
                             ScrollView {
                                 LazyVStack(spacing: 0) {
                                     ForEach(viewModel.episodes.indices, id: \.self) { index in
@@ -149,43 +157,36 @@ struct ContentView: View {
                                             selectedEpisode: $selectedEpisode,
                                             showingEpisodeDetail: $showingEpisodeDetail,
                                             onDoubleTap: {
-                                                // Implementation for double-tap action
-                                                // Likely you want to play the episode here, similar to:
-                                                // viewModel.onEpisodeDoubleClicked(viewModel.episodes[index])
+                                                // Placeholder action
                                             },
                                             onPlay: {
-                                                // Placeholder action for onPlay, does nothing for now
-                                                // Adjust this based on how you want to handle play actions from this context
+                                                // Placeholder action
                                             },
-                                            viewModel: viewModel // Make sure to pass the viewModel here
+                                            viewModel: viewModel
                                         )
                                         
-                                        // Only add a divider if it's not the last item
                                         if index < viewModel.episodes.count - 1 {
-                                            // Wrapping CustomDivider in a VStack and applying horizontal padding
                                             VStack {
                                                 CustomDivider(color: Color.gray.opacity(0.3), thickness: 1)
                                             }
-                                            .padding(.horizontal, 8) // Adjust this value to control the divider's length
+                                            .padding(.horizontal, 8)
                                         }
                                     }
                                 }
                             }
-                            .frame(maxWidth: .infinity) // Ensure the ScrollView takes up the full available width
-                            
+                            .frame(maxWidth: .infinity)
                         }
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity) // Ensure VStack takes up all available space
-                    .background(FocusableView()) // Background of the content area
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(FocusableView())
                 }
                 Spacer()
-                
-                // MARK: - Podcast Footer (Newly Added)
-                PodcastFooter() // This adds the PodcastFooter above the control buttons
+
+                PodcastFooter()
                     .environmentObject(viewModel)
                     .padding(.horizontal, -266)
-                    .padding(.bottom, -45) // Add or reduce padding to move the footer up or down
-                // MARK: - Playback Controls (Always Visible, below the main content)
+                    .padding(.bottom, -45)
+
                 VStack {
                     HStack {
                         Spacer(minLength: 45)
@@ -214,13 +215,9 @@ struct ContentView: View {
                 Task {
                     let defaultFeedUrl = "https://thecultcast.libsyn.com/rss"
                     await viewModel.fetchEpisodes(feedUrl: defaultFeedUrl)
-                    // Any post-fetch logic should go here, after the 'await' call
-                    // For example, if you need to update the UI or process episodes further:
-                    // self.updateUIAfterFetchingEpisodes()
                 }
             }
             .onChange(of: scenePhase, initial: false) { _, newPhase in
-                // Handling app state changes
                 switch newPhase {
                 case .background:
                     viewModel.handleAppMovedToBackground()
