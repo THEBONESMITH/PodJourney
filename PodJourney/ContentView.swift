@@ -44,6 +44,7 @@ struct ContentView: View {
     @State private var showingSearch = false
     @State private var showingEpisodeDetail = false
     @State private var selectedEpisode: Episode? // Holds the selected episode for details
+    @State private var selectedPodcast: Podcast?
     private let seekPublisher = PassthroughSubject<Double, Never>()
     private var cancellables: Set<AnyCancellable> = []
     var onSeekEnd: ((Double) -> Void)? = nil
@@ -104,25 +105,51 @@ struct ContentView: View {
                     VStack {
                         if showingSearch {
                             HStack { // This HStack contains the search results and the custom list
-                                SearchView(showingSearch: $showingSearch)
+                                SearchView(showingSearch: $showingSearch, selectedPodcast: $selectedPodcast)
                                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                                 
                                 Divider() // Vertical divider between search results and the custom list
-
+                                
                                 // Custom List appears to the right when search is active
                                 VStack {
-                                    Text("Search Results")
+                                    Text("Episodes")
                                         .font(.headline)
                                         .padding()
                                     
-                                    List {
-                                        // List can be populated dynamically based on search results
-                                        Text("No results yet")
-                                            .foregroundColor(.gray)
+                                    ScrollView {
+                                        VStack(spacing: 0) {
+                                            if let podcast = selectedPodcast {
+                                                ForEach(viewModel.episodes, id: \.id) { episode in
+                                                    Text(episode.title)
+                                                        .padding(10)
+                                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                                        .background(Color.gray)
+                                                        .cornerRadius(5)
+                                                        .overlay(
+                                                            RoundedRectangle(cornerRadius: 5)
+                                                                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                                                        )
+                                                }
+                                            } else {
+                                                Text("Select a podcast to view episodes")
+                                                    .foregroundColor(.gray)
+                                                    .padding(10)
+                                            }
+                                            
+                                            // Divider between items if you have multiple items
+                                            Color.gray.opacity(0.3)
+                                                .frame(height: 1)
+                                                .edgesIgnoringSafeArea(.horizontal)
+                                        }
                                     }
+                                    .background(Color("systemGroupedBackground")) // Use named Color set in Assets for macOS compatibility
+                                    .cornerRadius(10) // Consistent with your other UI elements
+                                    .shadow(radius: 5) // Subtle shadow for depth
                                 }
-                                .frame(width: 200) // Set the width of the custom list panel
+                                .frame(width: 500) // Custom width for the search results panel
+                                .padding(.horizontal) // Padding to ensure it doesn't touch the edges of the screen
                             }
+ 
                         } else if showingEpisodeDetail, let episode = selectedEpisode {
                             VStack(alignment: .leading) {
                                 Button(action: {
@@ -474,29 +501,44 @@ struct ContentView: View {
     
     struct SearchView: View {
         @Binding var showingSearch: Bool
+        @Binding var selectedPodcast: Podcast?
         @EnvironmentObject var viewModel: PodcastViewModel
-        @State private var searchText = ""
-        @State private var selectedPodcast: Podcast?  // State to track selected podcast
-        
+
         var body: some View {
             VStack {
-                TextField("Search...", text: $searchText)
+                TextField("Search...", text: $viewModel.searchText)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .onChange(of: searchText) { newValue in
+                    .onChange(of: viewModel.searchText) { newValue in
                         viewModel.searchSubject.send(newValue)
                     }
-                
+
                 if viewModel.isSearching {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle())
-                        .overlay(Text("Searching...").foregroundColor(.gray))
+                    ProgressView("Searching...")
+                } else {
+                    List(viewModel.searchResults, id: \.id) { podcast in
+                        HStack {
+                            AsyncImage(url: URL(string: podcast.artworkUrl100)) { image in
+                                image.resizable()
+                            } placeholder: {
+                                ProgressView()
+                            }
+                            .frame(width: 50, height: 50)
+                            .cornerRadius(8)
+
+                            VStack(alignment: .leading) {
+                                Text(podcast.trackName)
+                                    .fontWeight(.bold)
+                                Text(podcast.artistName)
+                                    .font(.caption)
+                            }
+                        }
+                        .onTapGesture {
+                            self.selectedPodcast = podcast
+                            viewModel.loadEpisodes(for: podcast)
+                        }
+                        .padding(.vertical, 4)
+                    }
                 }
-                
-                if let errorMessage = viewModel.errorMessage, !errorMessage.isEmpty {
-                    Text(errorMessage).foregroundColor(.red)
-                }
-                
-                resultsList
             }
         }
         
@@ -658,6 +700,63 @@ struct ContentView: View {
             Text(viewModel.podcastTitle ?? "Loading Podcast...")
                 .font(.title)
                 .padding([.top, .leading, .trailing])
+        }
+    }
+    
+    struct SearchAndResultsView: View {
+        @Binding var selectedPodcast: Podcast?
+        @EnvironmentObject var viewModel: PodcastViewModel
+
+        var body: some View {
+            VStack {
+                TextField("Search...", text: $viewModel.searchText)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .onChange(of: viewModel.searchText) { newValue in
+                        viewModel.searchPodcasts(with: newValue)
+                    }
+
+                if viewModel.isSearching {
+                    ProgressView("Searching...")
+                } else {
+                    List(viewModel.searchResults, id: \.id) { podcast in
+                        Text(podcast.trackName)
+                            .onTapGesture {
+                                self.selectedPodcast = podcast
+                                viewModel.loadEpisodes(for: podcast)
+                            }
+                    }
+                }
+            }
+        }
+    }
+    
+    struct EpisodesListView: View {
+        @EnvironmentObject var viewModel: PodcastViewModel
+        @State private var selectedEpisode: Episode?
+
+        var body: some View {
+            List(viewModel.episodes, id: \.id) { episode in
+                Text(episode.title)
+                    .onTapGesture {
+                        self.selectedEpisode = episode
+                    }
+            }
+            EpisodeView(selectedEpisode: $selectedEpisode)
+        }
+    }
+    
+    struct EpisodeDetailView: View {
+        var episode: Episode
+
+        var body: some View {
+            Text(episode.title)
+            // Additional details and controls for the episode
+        }
+    }
+
+    struct DefaultContentView: View {
+        var body: some View {
+            Text("Select a podcast to start")
         }
     }
     
@@ -911,16 +1010,21 @@ struct ContentView: View {
     
     struct EpisodeView: View {
         @EnvironmentObject var viewModel: PodcastViewModel
-        @State private var selectedEpisode: Episode? = nil
+        @Binding var selectedEpisode: Episode?
 
         var body: some View {
-            Button("Play Episode") {
-                print("Play Episode button pressed for episode: \(selectedEpisode?.title ?? "N/A")")
-                if let episode = selectedEpisode {
-                    Task {
-                        await viewModel.prepareAndPlayEpisode(episode, autoPlay: false)
+            if let episode = selectedEpisode {
+                Button(viewModel.isPlaying && viewModel.currentlyPlaying?.id == episode.id ? "Pause Episode" : "Play Episode") {
+                    if viewModel.isPlaying && viewModel.currentlyPlaying?.id == episode.id {
+                        viewModel.pausePlayback()
+                    } else {
+                        Task {
+                            await viewModel.prepareAndPlayEpisode(episode, autoPlay: true)
+                        }
                     }
                 }
+            } else {
+                Text("Select an episode to play")
             }
         }
     }

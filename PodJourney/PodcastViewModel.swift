@@ -856,6 +856,50 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
 }
 
 extension PodcastViewModel {
+    func loadEpisodes(for podcast: Podcast) {
+        print("loadEpisodes called")
+        guard let url = URL(string: podcast.feedUrl) else {
+            print("Invalid URL")
+            return
+        }
+
+        let parser = FeedParser(URL: url)
+        parser.parseAsync { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let feed):
+                    if let items = feed.rssFeed?.items {
+                        self.episodes = items.compactMap { item in
+                            Episode(
+                                title: item.title ?? "No title",
+                                link: item.link ?? "",
+                                description: item.description ?? "",
+                                mediaURL: URL(string: item.enclosure?.attributes?.url ?? "https://example.com")!, // Handling nil URL more gracefully
+                                date: item.pubDate?.formattedToString() ?? "Unknown date",
+                                author: item.author ?? "Unknown author",
+                                category: item.categories?.first?.value ?? "No category",
+                                rating: "G", // Assuming a general rating if none provided
+                                duration: self.formatDuration(from: item.iTunes?.iTunesDuration) // Correctly formatting duration
+                            )
+                        }
+                    }
+                case .failure(let error):
+                    print("Failed to parse feed: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+    
+    func formatDuration(from timeInterval: TimeInterval?) -> String {
+        guard let interval = timeInterval else {
+            return "Unknown duration"
+        }
+        let formatter = DateComponentsFormatter()
+        formatter.unitsStyle = .full
+        formatter.allowedUnits = [.hour, .minute, .second]
+        return formatter.string(from: interval) ?? "Unknown duration"
+    }
+
     func adjustVolume(to newVolume: Float) {
             player.volume = newVolume
             print("Volume adjusted to \(newVolume)")
