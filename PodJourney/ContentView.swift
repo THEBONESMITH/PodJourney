@@ -120,31 +120,39 @@ struct ContentView: View {
                                         VStack(spacing: 0) {
                                             if let podcast = selectedPodcast {
                                                 ForEach(viewModel.episodes, id: \.id) { episode in
-                                                    Text(episode.title)
-                                                        .padding(10)
-                                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                                        .background(Color.gray)
-                                                        .cornerRadius(5)
-                                                        .overlay(
-                                                            RoundedRectangle(cornerRadius: 5)
-                                                                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                                                        )
+                                                    EpisodeRowView(
+                                                        episode: Episode(
+                                                            title: episode.title,
+                                                            link: episode.link,
+                                                            description: episode.description.simplifiedHTML(), // HTML stripped description
+                                                            mediaURL: episode.mediaURL,
+                                                            date: episode.date,
+                                                            duration: episode.duration
+                                                            // ... add other properties as needed
+                                                        ),
+                                                        selectedEpisode: .constant(nil),
+                                                        showingEpisodeDetail: .constant(false),
+                                                        onDoubleTap: { /* Implement double tap action if needed */ },
+                                                        onPlay: { /* Implement play action if needed */ },
+                                                        viewModel: viewModel
+                                                    )
+                                                    .padding(.horizontal, 8) // Horizontal padding for the content
+                                                    .padding(.vertical, 4) // Vertical padding for each item
+
+                                                    Divider()
+                                                        .background(Color.gray.opacity(0.3))
                                                 }
                                             } else {
                                                 Text("Select a podcast to view episodes")
                                                     .foregroundColor(.gray)
                                                     .padding(10)
+                                                    .frame(maxWidth: .infinity, alignment: .center) // Center the placeholder text
                                             }
-                                            
-                                            // Divider between items if you have multiple items
-                                            Color.gray.opacity(0.3)
-                                                .frame(height: 1)
-                                                .edgesIgnoringSafeArea(.horizontal)
                                         }
                                     }
-                                    .background(Color("systemGroupedBackground")) // Use named Color set in Assets for macOS compatibility
-                                    .cornerRadius(10) // Consistent with your other UI elements
-                                    .shadow(radius: 5) // Subtle shadow for depth
+                                    .background(Color("systemGroupedBackground")) // Ensure this color is defined in your Assets
+                                    .cornerRadius(10)
+                                    .shadow(radius: 5)
                                 }
                                 .frame(width: 500) // Custom width for the search results panel
                                 .padding(.horizontal) // Padding to ensure it doesn't touch the edges of the screen
@@ -776,6 +784,66 @@ struct ContentView: View {
                 },
                 viewModel: viewModel // Pass the viewModel here
             )
+        }
+    }
+
+    struct PodcastRowView: View {
+        let podcast: Podcast
+        @Binding var selectedPodcast: Podcast?
+        @EnvironmentObject var viewModel: PodcastViewModel
+
+        @State private var isHovering = false
+
+        let highlightColor = Color(red: 27 / 255.0, green: 84 / 255.0, blue: 199 / 255.0)
+        let hoverColor = Color.gray.opacity(0.2)
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    AsyncImage(url: URL(string: podcast.artworkUrl100)) { imagePhase in
+                        switch imagePhase {
+                        case .success(let image):
+                            image.resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 100, height: 100)
+                        case .failure(_):
+                            Image(systemName: "photo")
+                        case .empty:
+                            ProgressView()
+                        @unknown default:
+                            EmptyView()
+                        }
+                    }
+                    .frame(width: 100, height: 100)
+                    .cornerRadius(8)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Spacer(minLength: 6)
+                        Text(podcast.trackName)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .lineLimit(2)
+                        Text(podcast.artistName)
+                            .font(.caption)
+                            .foregroundColor(.white)
+                            .lineLimit(2)
+                        Spacer(minLength: 6)
+                    }
+
+                    Spacer() // Pushes content to the sides
+                }
+                .padding(.horizontal, 8) // Add horizontal padding to the HStack
+            }
+            .frame(height: 112) // Fixed height for the entire row
+            .background(RoundedRectangle(cornerRadius: 8).fill(selectedPodcast?.id == podcast.id ? highlightColor : (isHovering ? hoverColor : Color.clear)))
+            .cornerRadius(8)
+            .onTapGesture {
+                self.selectedPodcast = podcast
+                viewModel.loadEpisodes(for: podcast)
+            }
+            .onHover { hover in
+                self.isHovering = hover
+            }
         }
     }
 
