@@ -775,74 +775,29 @@ struct ContentView: View {
                 selectedEpisode: $selectedEpisode,
                 showingEpisodeDetail: $showingEpisodeDetail,
                 onDoubleTap: {
-                    // Implementation for double-tap action
-                    // Example: viewModel.onEpisodeDoubleClicked(episode)
+                    // This could be where you handle the double tap action, like showing episode details
+                    selectedEpisode = episode
+                    showingEpisodeDetail = true
                 },
                 onPlay: {
-                    // Implementation for play action
-                    // Example: viewModel.playEpisode(episode)
+                    // Here you might want to handle the play action, like playing the episode
+                    Task {
+                        await viewModel.prepareAndPlayEpisode(episode, autoPlay: true)
+                    }
                 },
                 viewModel: viewModel // Pass the viewModel here
             )
-        }
-    }
-
-    struct PodcastRowView: View {
-        let podcast: Podcast
-        @Binding var selectedPodcast: Podcast?
-        @EnvironmentObject var viewModel: PodcastViewModel
-
-        @State private var isHovering = false
-
-        let highlightColor = Color(red: 27 / 255.0, green: 84 / 255.0, blue: 199 / 255.0)
-        let hoverColor = Color.gray.opacity(0.2)
-
-        var body: some View {
-            VStack(alignment: .leading, spacing: 0) {
-                HStack {
-                    AsyncImage(url: URL(string: podcast.artworkUrl100)) { imagePhase in
-                        switch imagePhase {
-                        case .success(let image):
-                            image.resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 100, height: 100)
-                        case .failure(_):
-                            Image(systemName: "photo")
-                        case .empty:
-                            ProgressView()
-                        @unknown default:
-                            EmptyView()
-                        }
-                    }
-                    .frame(width: 100, height: 100)
-                    .cornerRadius(8)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Spacer(minLength: 6)
-                        Text(podcast.trackName)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
-                            .lineLimit(2)
-                        Text(podcast.artistName)
-                            .font(.caption)
-                            .foregroundColor(.white)
-                            .lineLimit(2)
-                        Spacer(minLength: 6)
-                    }
-
-                    Spacer() // Pushes content to the sides
+            .padding(.vertical, 4)
+            .onTapGesture(count: 2) {
+                // Handle double-tap gesture to play the episode
+                Task {
+                    await viewModel.prepareAndPlayEpisode(episode, autoPlay: true)
                 }
-                .padding(.horizontal, 8) // Add horizontal padding to the HStack
             }
-            .frame(height: 112) // Fixed height for the entire row
-            .background(RoundedRectangle(cornerRadius: 8).fill(selectedPodcast?.id == podcast.id ? highlightColor : (isHovering ? hoverColor : Color.clear)))
-            .cornerRadius(8)
+            // If you need hover effects on macOS, you can add an .onHover modifier here
             .onTapGesture {
-                self.selectedPodcast = podcast
-                viewModel.loadEpisodes(for: podcast)
-            }
-            .onHover { hover in
-                self.isHovering = hover
+                // Handle single tap gesture to select the episode
+                selectedEpisode = episode
             }
         }
     }

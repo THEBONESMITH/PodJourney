@@ -30,25 +30,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
 @main
 struct PodJourneyApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    let mediaPlayer: MediaPlayer
-    let viewModel: PodcastViewModel
-
-    init() {
-        mediaPlayer = MediaPlayer()
-        viewModel = PodcastViewModel(mediaPlayer: mediaPlayer)
-    }
+    @StateObject var viewModel = PodcastViewModel(mediaPlayer: MediaPlayer())
 
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environmentObject(viewModel)
-                .frame(minWidth: 800, minHeight: 600) // Minimum size
+                .environmentObject(viewModel)  // Inject the ViewModel into ContentView
+                .frame(minWidth: 800, minHeight: 600) // Maintain minimum size constraints
         }
-        .commands {
-            CommandGroup(replacing: .newItem, addition: { })
-        }
-        .windowStyle(DefaultWindowStyle())
-        .windowToolbarStyle(UnifiedCompactWindowToolbarStyle())
     }
 }

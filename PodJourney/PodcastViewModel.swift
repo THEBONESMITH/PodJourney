@@ -77,6 +77,8 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     @Published var isSearching = false
     @Published var errorMessage: String?
     @Published var searchText = ""
+    @Published var podcasts: [Podcast] = []
+    @Published var selectedPodcast: Podcast?
     private var subscriptions = Set<AnyCancellable>()
     private var playbackTimeObserverToken: AVPlayerItem?
     private let episodeSelectionSubject = PassthroughSubject<Episode, Never>()
@@ -88,6 +90,7 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     private var playerItemStatusObserver: NSKeyValueObservation?
     private var playerItemObserver: NSKeyValueObservation?
     private var searchDelayPublisher: AnyPublisher<String, Never>?
+    private var isParsingCancelled = false
     weak var delegate: MediaPlayerDelegate?
     var timeObserverToken: Any?
     var shouldAutoPlay = false
@@ -99,7 +102,7 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     init(mediaPlayer: MediaPlayer) {
             self.mediaPlayer = mediaPlayer
             super.init()
-            print("Initializing PodcastViewModel...")
+            print("ViewModel initialized")
             
             // Additional setup after MediaPlayer is fully configured
             setupDebouncedSeek()
@@ -110,6 +113,11 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
             self.player = AVPlayer()
             setupSearchPublisher()
             setupSearchSubscriber()
+            loadPodcasts()
+        self.podcasts = [
+            Podcast(id: 1, artistName: "Artist One", trackName: "Podcast One", artworkUrl100: "http://example.com/artwork1.jpg", feedUrl: "http://example.com/feed1.rss"),
+            Podcast(id: 2, artistName: "Artist Two", trackName: "Podcast Two", artworkUrl100: "http://example.com/artwork2.jpg", feedUrl: "http://example.com/feed2.rss")
+            ]
         }
     
     override init() {
@@ -118,6 +126,20 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
             setupPlayer()
             print("PodcastViewModel initialized with direct AVPlayer control.")
         }
+    
+    func loadPodcasts() {
+        // Simulate network call without using asyncAfter to avoid potential race conditions
+        DispatchQueue.global(qos: .background).async {
+            let fetchedPodcasts = [
+                Podcast(id: 1, artistName: "Artist One", trackName: "Podcast One", artworkUrl100: "http://example.com/artwork1.jpg", feedUrl: "http://example.com/feed1.rss"),
+                Podcast(id: 2, artistName: "Artist Two", trackName: "Podcast Two", artworkUrl100: "http://example.com/artwork2.jpg", feedUrl: "http://example.com/feed2.rss")
+            ]
+            DispatchQueue.main.async {
+                self.podcasts = fetchedPodcasts
+                print("Podcasts loaded: \(self.podcasts.count)")
+            }
+        }
+    }
     
     private func setupSearchSubscriber() {
         searchSubject
@@ -467,16 +489,18 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
             print("Invalid feed URL.")
             return
         }
+        
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
 
         await withCheckedContinuation { continuation in
             let parser = FeedParser(URL: url)
-
             parser.parseAsync { [weak self] result in
                 guard let self = self else {
                     continuation.resume()
                     return
                 }
-
+                
                 DispatchQueue.main.async {
                     switch result {
                     case .success(let feed):
@@ -493,15 +517,12 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
                                     return nil
                                 }
 
-                                let dateFormatter = DateFormatter()
-                                dateFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
                                 let pubDateString = dateFormatter.string(from: pubDate)
                                 let cleanDescription = rawDescription.simplifiedHTML().fixApostrophes()
                                 let duration = item.iTunes?.iTunesDuration.map { [weak self] interval -> String in
                                     guard let self = self else { return "Unknown Duration" }
                                     return self.stringFromTimeInterval(interval: interval)
                                 } ?? "Unknown Duration"
-
 
                                 return Episode(
                                     id: UUID(),
@@ -512,7 +533,7 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
                                     date: pubDateString,
                                     author: item.iTunes?.iTunesAuthor ?? rssFeed.iTunes?.iTunesAuthor ?? "Unknown Author",
                                     website: URL(string: item.link ?? ""),
-                                    category: nil,  // Set to nil or remove entirely if not needed
+                                    category: nil,
                                     rating: item.iTunes?.iTunesExplicit == "yes" ? "Explicit" : "Clean",
                                     size: item.enclosure?.attributes?.length.flatMap(Int64.init) ?? 0,
                                     duration: duration
@@ -857,37 +878,61 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
 
 extension PodcastViewModel {
     func loadEpisodes(for podcast: Podcast) {
-        print("loadEpisodes called")
-        guard let url = URL(string: podcast.feedUrl) else {
-            print("Invalid URL")
-            return
-        }
+            guard let url = URL(string: podcast.feedUrl) else {
+                print("Invalid URL")
+                return
+            }
 
-        let parser = FeedParser(URL: url)
-        parser.parseAsync { result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success(let feed):
-                    if let items = feed.rssFeed?.items {
-                        self.episodes = items.compactMap { item in
+            // Reset cancellation flag at the start
+            isParsingCancelled = false
+
+            let parser = FeedParser(URL: url)
+            parser.parseAsync(queue: DispatchQueue.global(qos: .background)) { [weak self] result in
+                guard let self = self else { return }
+                
+                DispatchQueue.main.async {
+                    if self.isParsingCancelled {
+                        print("Parsing was cancelled or timed out.")
+                        return
+                    }
+
+                    switch result {
+                    case .success(let feed):
+                        self.episodes = feed.rssFeed?.items?.compactMap { item in
                             Episode(
                                 title: item.title ?? "No title",
                                 link: item.link ?? "",
                                 description: item.description ?? "",
-                                mediaURL: URL(string: item.enclosure?.attributes?.url ?? "https://example.com")!, // Handling nil URL more gracefully
+                                mediaURL: URL(string: item.enclosure?.attributes?.url ?? "https://example.com") ?? URL(string: "https://example.com")!,
                                 date: item.pubDate?.formattedToString() ?? "Unknown date",
                                 author: item.author ?? "Unknown author",
                                 category: item.categories?.first?.value ?? "No category",
-                                rating: "G", // Assuming a general rating if none provided
-                                duration: self.formatDuration(from: item.iTunes?.iTunesDuration) // Correctly formatting duration
+                                rating: "G",
+                                duration: self.formatDuration(from: item.iTunes?.iTunesDuration)
                             )
-                        }
+                        } ?? []
+                        print("Episodes loaded: \(self.episodes.count)")
+                    case .failure(let error):
+                        print("Failed to parse feed: \(error.localizedDescription)")
                     }
-                case .failure(let error):
-                    print("Failed to parse feed: \(error.localizedDescription)")
                 }
             }
+
+            // Setup a timeout to set the cancellation flag
+            DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 10) { [weak self] in
+                self?.isParsingCancelled = true
+            }
         }
+    
+    private func parseFeedData(_ data: Data) -> [Episode] {
+        // Assuming parsing logic here, which converts data to episodes
+        var episodes = [Episode]()
+
+        // Parsing logic to convert 'data' into 'episodes'
+        // For example purposes, let's assume you populate it like this:
+        // episodes.append(Episode(title: "Example", description: "Example Description"))
+
+        return episodes
     }
     
     func formatDuration(from timeInterval: TimeInterval?) -> String {

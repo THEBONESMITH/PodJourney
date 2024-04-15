@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		E18BA7C62BCD24B200FADC9E /* NewContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E18BA7C52BCD24B200FADC9E /* NewContentView.swift */; };
+		E1D0EDFE2BCD3158003E2224 /* PodcastRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1D0EDFD2BCD3158003E2224 /* PodcastRowView.swift */; };
 		E1FF074E2BB5057A00267738 /* PodJourneyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1FF074D2BB5057A00267738 /* PodJourneyApp.swift */; };
 		E1FF07502BB5057A00267738 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1FF074F2BB5057A00267738 /* ContentView.swift */; };
 		E1FF07522BB5057C00267738 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E1FF07512BB5057C00267738 /* Assets.xcassets */; };
@@ -52,6 +54,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		E18BA7C52BCD24B200FADC9E /* NewContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewContentView.swift; sourceTree = "<group>"; };
+		E1D0EDFD2BCD3158003E2224 /* PodcastRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PodcastRowView.swift; sourceTree = "<group>"; };
 		E1FF074A2BB5057A00267738 /* PodJourney.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PodJourney.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E1FF074D2BB5057A00267738 /* PodJourneyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PodJourneyApp.swift; sourceTree = "<group>"; };
 		E1FF074F2BB5057A00267738 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -153,6 +157,8 @@
 				E1FF079C2BB50BC400267738 /* MediaPlayer.swift */,
 				E1FF077F2BB5069500267738 /* MediaPlayerState.swift */,
 				E1FF07532BB5057C00267738 /* Preview Content */,
+				E18BA7C52BCD24B200FADC9E /* NewContentView.swift */,
+				E1D0EDFD2BCD3158003E2224 /* PodcastRowView.swift */,
 			);
 			path = PodJourney;
 			sourceTree = "<group>";
@@ -334,9 +340,11 @@
 				E1FF079D2BB50BC400267738 /* MediaPlayer.swift in Sources */,
 				E1FF075A2BB5057C00267738 /* PodJourney.xcdatamodeld in Sources */,
 				E1FF07902BB507AD00267738 /* RSSModels.swift in Sources */,
+				E1D0EDFE2BCD3158003E2224 /* PodcastRowView.swift in Sources */,
 				E1FF078C2BB5075E00267738 /* SimplifiedHoverView.swift in Sources */,
 				E1FF07842BB506E800267738 /* ProgressBar.swift in Sources */,
 				E1FF074E2BB5057A00267738 /* PodJourneyApp.swift in Sources */,
+				E18BA7C62BCD24B200FADC9E /* NewContentView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
