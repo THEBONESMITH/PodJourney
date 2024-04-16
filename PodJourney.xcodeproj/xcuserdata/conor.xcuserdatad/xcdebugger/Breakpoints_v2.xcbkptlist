@@ -7,49 +7,17 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "538EB0E3-DCCD-47A5-837D-6609F537FFFC"
-            shouldBeEnabled = "Yes"
+            uuid = "C4F479D0-6DF5-4F1B-A84F-EEF663AA5966"
+            shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "PodJourney/PodcastViewModel.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "413"
-            endingLineNumber = "413"
-            landmarkName = "skipForward(seconds:)"
+            startingLineNumber = "883"
+            endingLineNumber = "883"
+            landmarkName = "attemptAutoPlay()"
             landmarkType = "7">
-            <Locations>
-               <Location
-                  uuid = "538EB0E3-DCCD-47A5-837D-6609F537FFFC - c1f8f21aa42c7459"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "PodJourney.PodcastViewModel.skipForward(seconds: Swift.Double) -&gt; ()"
-                  moduleName = "PodJourney"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/conor/Documents/PodJourney/PodJourney/PodcastViewModel.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "413"
-                  endingLineNumber = "413"
-                  offsetFromSymbolStart = "146">
-               </Location>
-               <Location
-                  uuid = "538EB0E3-DCCD-47A5-837D-6609F537FFFC - c1f8f21aa42c7459"
-                  shouldBeEnabled = "Yes"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "PodJourney.PodcastViewModel.skipForward(seconds: Swift.Double) -&gt; ()"
-                  moduleName = "PodJourney"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/conor/Documents/PodJourney/PodJourney/PodcastViewModel.swift"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "413"
-                  endingLineNumber = "413"
-                  offsetFromSymbolStart = "128">
-               </Location>
-            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>

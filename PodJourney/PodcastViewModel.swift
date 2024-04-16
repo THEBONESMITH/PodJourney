@@ -40,6 +40,8 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     @Published var isPlaying = false
     @Published var playbackProgress: Double = 0.0
     @Published var episodes: [Episode] = []
+    @Published var searchResults: [Podcast] = [] // Search results
+    @Published var searchEpisodes: [Episode] = [] // Episodes from search results
     @Published var selectedEpisodeID: UUID?
     @Published var isUserInteractingWithProgressBar = false
     @Published var currentProgress: Double = 0.0
@@ -69,7 +71,6 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     // Removed the duplicated MediaPlayer property
     @Published var isPreparingInitialPlayback = true
     @Published var podcastCategory: String = "General"
-    @Published var searchResults: [Podcast] = [] // Assume Podcast is your model type for search results
     @Published var selectedEpisodeTitle: String = ""
     @Published var isPlayButtonEnabled: Bool = false
     @Published var currentlyPlayingEpisode: Episode?
@@ -200,13 +201,25 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
                 }
             }, receiveValue: { [weak self] response in
                 guard let self = self else { return }
+                // Assuming each podcast in the results could potentially have its episodes fetched separately
                 self.updateSearchResults(with: response.results)
             })
     }
 
-    private func updateSearchResults(with results: [Podcast]) {
-        withAnimation {
-            self.searchResults = results
+    private func updateSearchResults(with podcasts: [Podcast]) {
+        DispatchQueue.main.async {
+            self.searchResults = podcasts
+            // Optionally, load episodes for the first few podcasts or wait for user action to select a podcast
+            self.loadEpisodesForSearchResults(podcasts)
+        }
+    }
+    
+    func loadEpisodesForSearchResults(_ podcasts: [Podcast]) {
+        // For each podcast, fetch episodes and update `searchEpisodes`
+        for podcast in podcasts.prefix(3) {  // Example: Load episodes for the first three podcasts only
+            Task {
+                await fetchEpisodes(for: podcast)
+            }
         }
     }
     
@@ -484,73 +497,78 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
             // Implementation
         }
     
-    func fetchEpisodes(feedUrl: String) async {
-        guard let url = URL(string: feedUrl) else {
-            print("Invalid feed URL.")
+    func fetchEpisodes(for podcast: Podcast) async {
+        guard let url = URL(string: podcast.feedUrl) else {
+            print("Invalid feed URL for podcast: \(podcast.trackName)")
             return
         }
         
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
 
-        await withCheckedContinuation { continuation in
-            let parser = FeedParser(URL: url)
-            parser.parseAsync { [weak self] result in
-                guard let self = self else {
-                    continuation.resume()
-                    return
-                }
-                
-                DispatchQueue.main.async {
-                    switch result {
-                    case .success(let feed):
-                        if let rssFeed = feed.rssFeed {
-                            self.podcastTitle = rssFeed.title ?? "Unknown Title"
-                            self.podcastImageUrl = URL(string: rssFeed.image?.url ?? "")
-                            
-                            self.episodes = rssFeed.items?.compactMap { item -> Episode? in
-                                guard let title = item.title,
-                                      let rawDescription = item.description,
-                                      let pubDate = item.pubDate,
-                                      let episodeLink = item.enclosure?.attributes?.url,
-                                      let episodeUrl = URL(string: episodeLink) else {
-                                    return nil
-                                }
-
-                                let pubDateString = dateFormatter.string(from: pubDate)
-                                let cleanDescription = rawDescription.simplifiedHTML().fixApostrophes()
-                                let duration = item.iTunes?.iTunesDuration.map { [weak self] interval -> String in
-                                    guard let self = self else { return "Unknown Duration" }
-                                    return self.stringFromTimeInterval(interval: interval)
-                                } ?? "Unknown Duration"
-
-                                return Episode(
-                                    id: UUID(),
-                                    title: title,
-                                    link: episodeLink,
-                                    description: cleanDescription,
-                                    mediaURL: episodeUrl,
-                                    date: pubDateString,
-                                    author: item.iTunes?.iTunesAuthor ?? rssFeed.iTunes?.iTunesAuthor ?? "Unknown Author",
-                                    website: URL(string: item.link ?? ""),
-                                    category: nil,
-                                    rating: item.iTunes?.iTunesExplicit == "yes" ? "Explicit" : "Clean",
-                                    size: item.enclosure?.attributes?.length.flatMap(Int64.init) ?? 0,
-                                    duration: duration
-                                )
-                            } ?? []
-                        } else {
-                            print("RSS feed not found.")
-                            self.episodes = []
-                        }
-                    case .failure(let error):
-                        print("Error parsing feed: \(error.localizedDescription)")
+        let parser = FeedParser(URL: url)
+        parser.parseAsync(queue: DispatchQueue.global(qos: .userInitiated)) { [weak self] result in
+            guard let self = self else { return }
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let feed):
+                    if let rssFeed = feed.rssFeed {
+                        let episodes = self.parseEpisodes(from: rssFeed, using: dateFormatter)
+                        self.updateEpisodes(episodes)
+                        self.updatePodcastDetails(from: rssFeed)
+                    } else {
+                        print("RSS feed not found.")
                         self.episodes = []
                     }
-                    continuation.resume()
+                case .failure(let error):
+                    print("Error parsing feed: \(error.localizedDescription)")
+                    self.episodes = []
                 }
             }
         }
+    }
+
+    private func parseEpisodes(from rssFeed: FeedKit.RSSFeed, using dateFormatter: DateFormatter) -> [Episode] {
+        return rssFeed.items?.compactMap { item -> Episode? in
+            guard let title = item.title,
+                  let pubDate = item.pubDate,
+                  let enclosure = item.enclosure,
+                  let enclosureUrl = enclosure.attributes?.url, // Now using the `url` property of `attributes`
+                  let episodeUrl = URL(string: enclosureUrl) else { // Now using the unwrapped `enclosureUrl`
+                return nil
+            }
+
+            let rawDescription = item.description ?? "No description available"
+            let pubDateString = dateFormatter.string(from: pubDate)
+            let cleanDescription = rawDescription.simplifiedHTML().fixApostrophes()
+            let duration = item.iTunes?.iTunesDuration.map { interval -> String in
+                return stringFromTimeInterval(interval: interval)
+            } ?? "Unknown Duration"
+
+            return Episode(
+                id: UUID(),
+                title: title,
+                link: enclosureUrl, // Directly using the unwrapped `enclosureUrl`
+                description: cleanDescription,
+                mediaURL: episodeUrl,
+                date: pubDateString,
+                author: item.iTunes?.iTunesAuthor ?? "Unknown Author",
+                website: URL(string: item.link ?? ""),
+                category: item.categories?.first?.value,
+                rating: item.iTunes?.iTunesExplicit == "yes" ? "Explicit" : "Clean",
+                size: enclosure.attributes?.length ?? 0, // Using the `length` property of `attributes`
+                duration: duration
+            )
+        } ?? []
+    }
+
+    private func updatePodcastDetails(from rssFeed: FeedKit.RSSFeed) {
+        self.podcastTitle = rssFeed.title ?? "Unknown Title"
+        self.podcastImageUrl = URL(string: rssFeed.image?.url ?? "")
+    }
+
+    private func updateEpisodes(_ episodes: [Episode]) {
+        self.episodes = episodes
     }
     
     func stringFromTimeInterval(interval: TimeInterval) -> String {

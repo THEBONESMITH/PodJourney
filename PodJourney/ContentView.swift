@@ -249,7 +249,11 @@ struct ContentView: View {
             .onAppear {
                 Task {
                     let defaultFeedUrl = "https://thecultcast.libsyn.com/rss"
-                    await viewModel.fetchEpisodes(feedUrl: defaultFeedUrl)
+                    // Construct a Podcast object with the necessary properties.
+                    // Since we only need feedUrl for fetching episodes, you can provide dummy data or partial data for the other properties.
+                    let podcast = Podcast(id: 0, artistName: "", trackName: "", artworkUrl100: "", feedUrl: defaultFeedUrl)
+                    // Pass the Podcast object to the fetchEpisodes method.
+                    await viewModel.fetchEpisodes(for: podcast)
                 }
             }
             .onChange(of: scenePhase, initial: false) { _, newPhase in
