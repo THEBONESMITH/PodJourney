@@ -106,6 +106,7 @@ struct ContentView: View {
                             if showingSearch {
                                 SearchView(showingSearch: $showingSearch, selectedPodcast: $selectedPodcast)
                                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    .background(Color.red.opacity(0.2)) // Temporarily color the background to check visibility
                                     .onAppear {
                                         Task {
                                             viewModel.clearEpisodes()
@@ -455,54 +456,48 @@ struct ContentView: View {
         @Binding var showingSearch: Bool
         @Binding var selectedPodcast: Podcast?
         @EnvironmentObject var viewModel: PodcastViewModel
-
-        var body: some View {
-            VStack {
-                TextField("Search...", text: $viewModel.searchText)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .onChange(of: viewModel.searchText) { _, newValue in
-                        viewModel.searchSubject.send(newValue)
-                    }
-
-                if viewModel.isSearching {
-                    ProgressView("Searching...")
-                } else {
-                    List(viewModel.searchResults, id: \.id) { podcast in
-                        HStack {
-                            AsyncImage(url: URL(string: podcast.artworkUrl100)) { image in
-                                image.resizable()
-                            } placeholder: {
-                                ProgressView()
+        
+        // resultsList is now a computed property of SearchView
+        var resultsList: some View {
+            ScrollView {
+                VStack {  // Using VStack to align the rows vertically
+                    ForEach(viewModel.searchResults, id: \.id) { podcast in
+                        PodcastRow(podcast: podcast, selectedPodcast: $selectedPodcast, viewModel: viewModel)
+                            .padding(.vertical, 4)
+                            .onTapGesture {
+                                self.selectedPodcast = podcast
+                                // Optional: Perform any actions needed when a podcast is selected
                             }
-                            .frame(width: 50, height: 50)
-                            .cornerRadius(8)
-
-                            VStack(alignment: .leading) {
-                                Text(podcast.trackName)
-                                    .fontWeight(.bold)
-                                Text(podcast.artistName)
-                                    .font(.caption)
-                            }
-                        }
-                        .onTapGesture {
-                            self.selectedPodcast = podcast
-                            viewModel.loadEpisodes(for: podcast)
-                        }
-                        .padding(.vertical, 4)
+                            .background(selectedPodcast?.id == podcast.id ? Color.gray.opacity(0.2) : Color.clear)  // Highlight the selected podcast
                     }
                 }
             }
         }
         
-        var resultsList: some View {
-            ScrollView {
-                ForEach(viewModel.searchResults, id: \.id) { podcast in
-                    PodcastRow(podcast: podcast, selectedPodcast: $selectedPodcast, viewModel: viewModel)
-                        .padding(.vertical, 4)
-                        .onTapGesture {
-                            self.selectedPodcast = podcast
+        var body: some View {
+            HStack { // This HStack will hold both the search field and the results
+                VStack {
+                    TextField("Search...", text: $viewModel.searchText)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .onChange(of: viewModel.searchText) { _, newValue in
+                            viewModel.searchSubject.send(newValue)
                         }
+                    
+                    if viewModel.isSearching {
+                        ProgressView("Searching...")
+                    } else {
+                        resultsList // Call the resultsList here
+                    }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.red.opacity(0.2)) // Temporarily color the background to check visibility
+                
+                // This is the right side of the HStack, where you may want to display the selected podcast's episodes or details
+                // If selectedPodcast is non-nil, show the details or episodes for that podcast
+                if let _ = selectedPodcast {
+                    EpisodesListView(episodes: viewModel.searchEpisodes)
+                } // Pass the search episodes array
+                    // Here you can call a detail view or an episodes list view for the selected podcast    
             }
         }
         
@@ -685,6 +680,7 @@ struct ContentView: View {
     struct EpisodesListView: View {
         @EnvironmentObject var viewModel: PodcastViewModel
         @State private var selectedEpisode: Episode?
+        let episodes: [Episode]
 
         var body: some View {
             List(viewModel.episodes, id: \.id) { episode in
