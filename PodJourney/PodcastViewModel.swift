@@ -209,17 +209,17 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     private func updateSearchResults(with podcasts: [Podcast]) {
         DispatchQueue.main.async {
             self.searchResults = podcasts
-            // Optionally, load episodes for the first few podcasts or wait for user action to select a podcast
-            self.loadEpisodesForSearchResults(podcasts)
+            // Since we are already on the main thread, we can just start a new Task without needing another DispatchQueue.main.async.
+            Task {
+                await self.loadEpisodesForSearchResults(podcasts)
+            }
         }
     }
     
-    func loadEpisodesForSearchResults(_ podcasts: [Podcast]) {
+    func loadEpisodesForSearchResults(_ podcasts: [Podcast]) async {
         // For each podcast, fetch episodes and update `searchEpisodes`
         for podcast in podcasts.prefix(3) {  // Example: Load episodes for the first three podcasts only
-            Task {
-                await fetchEpisodes(for: podcast)
-            }
+            await fetchEpisodes(for: podcast)
         }
     }
     
@@ -506,23 +506,35 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
 
-        let parser = FeedParser(URL: url)
-        parser.parseAsync(queue: DispatchQueue.global(qos: .userInitiated)) { [weak self] result in
-            guard let self = self else { return }
-            DispatchQueue.main.async {
+        // Wrap the asynchronous operation in an async closure to use 'await'
+        await withCheckedContinuation { continuation in
+            let parser = FeedParser(URL: url)
+            parser.parseAsync(queue: DispatchQueue.global(qos: .userInitiated)) { [weak self] result in
                 switch result {
                 case .success(let feed):
+                    // Extract the RSSFeed from the Feed enum using pattern matching.
                     if let rssFeed = feed.rssFeed {
-                        let episodes = self.parseEpisodes(from: rssFeed, using: dateFormatter)
-                        self.updateEpisodes(episodes)
-                        self.updatePodcastDetails(from: rssFeed)
+                        let episodes = self?.parseEpisodes(from: rssFeed, using: dateFormatter) ?? []
+                        DispatchQueue.main.async {
+                            // Make sure you're updating the episodes and podcast details on the main thread because they're @Published properties.
+                            self?.episodes = episodes
+                            self?.updatePodcastDetails(from: rssFeed) // Include this line to update podcast details
+                            continuation.resume()
+                        }
                     } else {
-                        print("RSS feed not found.")
-                        self.episodes = []
+                        DispatchQueue.main.async {
+                            print("The feed is not an RSS feed.")
+                            // Handle the case where the feed is not an RSS feed.
+                            continuation.resume()
+                        }
                     }
                 case .failure(let error):
-                    print("Error parsing feed: \(error.localizedDescription)")
-                    self.episodes = []
+                    DispatchQueue.main.async {
+                        self?.episodes = []
+                        print("Error parsing feed: \(error.localizedDescription)")
+                        // Update UI to show an error message or state.
+                        continuation.resume()
+                    }
                 }
             }
         }
