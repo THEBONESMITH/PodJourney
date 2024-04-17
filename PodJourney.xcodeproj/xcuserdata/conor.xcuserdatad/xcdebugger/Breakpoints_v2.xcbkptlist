@@ -14,8 +14,8 @@
             filePath = "PodJourney/PodcastViewModel.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "895"
-            endingLineNumber = "895"
+            startingLineNumber = "918"
+            endingLineNumber = "918"
             landmarkName = "attemptAutoPlay()"
             landmarkType = "7">
          </BreakpointContent>

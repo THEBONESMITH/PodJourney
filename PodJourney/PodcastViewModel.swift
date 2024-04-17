@@ -128,6 +128,37 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
             print("PodcastViewModel initialized with direct AVPlayer control.")
         }
     
+    func clearEpisodesForSearch() {
+        DispatchQueue.main.async {
+            self.searchEpisodes = [] // Assuming `searchEpisodes` holds your search-related episodes
+        }
+    }
+    
+    // In PodcastViewModel
+    func loadInitialEpisodes() async {
+        // Your logic to load episodes
+        print("Initial episodes are loaded")
+    }
+
+    // Method to clear episodes list
+    func clearEpisodes() {
+        DispatchQueue.main.async {
+            self.episodes = []
+        }
+    }
+    
+    // Method to load the default episodes for your example podcast
+    func loadDefaultEpisodes() async {
+        let defaultFeedUrl = "https://thecultcast.libsyn.com/rss"
+        guard let url = URL(string: defaultFeedUrl) else {
+            print("Invalid URL")
+            return
+        }
+
+        // Assuming fetchEpisodes is an async method that fetches and updates episodes based on a URL
+        await fetchEpisodes(for: Podcast(id: 0, artistName: "", trackName: "", artworkUrl100: "", feedUrl: url.absoluteString))
+    }
+    
     func loadPodcasts() {
         // Simulate network call without using asyncAfter to avoid potential race conditions
         DispatchQueue.global(qos: .background).async {
@@ -164,13 +195,12 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         }
     
     func searchPodcasts(with query: String) {
-        searchCancellable?.cancel()  // Ensure to cancel the existing request before starting a new one
+        searchCancellable?.cancel() // Ensure to cancel the existing request before starting a new one
 
         let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedQuery.isEmpty else {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { // Delay clearing results
-                self.updateSearchResults(with: [])
-            }
+            // Immediate clearing of results without delay
+            self.updateSearchResults(with: [])
             self.isSearching = false
             return
         }
@@ -186,33 +216,26 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         searchCancellable = URLSession.shared.dataTaskPublisher(for: url)
             .map(\.data)
             .decode(type: SearchResponse.self, decoder: JSONDecoder())
-            .receive(on: DispatchQueue.main)
+            .receive(on: DispatchQueue.main) // Decoding and error handling occurs on a background thread, but UI updates are dispatched to the main thread.
             .sink(receiveCompletion: { [weak self] completion in
-                guard let self = self else { return }
                 switch completion {
                 case .finished:
-                    self.isSearching = false
+                    // Nothing needed here since the next step will stop the search
+                    break
                 case .failure(let error):
-                    self.errorMessage = error.localizedDescription
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1) { // Delay clearing results
-                        self.updateSearchResults(with: [])
-                    }
-                    self.isSearching = false
+                    self?.errorMessage = error.localizedDescription
+                    self?.updateSearchResults(with: []) // Update results immediately without delay
                 }
+                self?.isSearching = false
             }, receiveValue: { [weak self] response in
-                guard let self = self else { return }
-                // Assuming each podcast in the results could potentially have its episodes fetched separately
-                self.updateSearchResults(with: response.results)
+                self?.updateSearchResults(with: response.results)
             })
     }
 
-    private func updateSearchResults(with podcasts: [Podcast]) {
+    func updateSearchResults(with podcasts: [Podcast]) {
         DispatchQueue.main.async {
             self.searchResults = podcasts
-            // Since we are already on the main thread, we can just start a new Task without needing another DispatchQueue.main.async.
-            Task {
-                await self.loadEpisodesForSearchResults(podcasts)
-            }
+            print("Search results updated: \(podcasts)")
         }
     }
     

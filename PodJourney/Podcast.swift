@@ -8,7 +8,7 @@
 import Foundation
 import SwiftUI
 
-struct Podcast: Identifiable, Decodable {
+struct Podcast: Identifiable, Decodable, Equatable {
     let id: Int
     let artistName: String
     let trackName: String
