@@ -944,7 +944,11 @@ extension PodcastViewModel {
     
     private func parseFeedData(_ data: Data) -> [Episode] {
         // Assuming parsing logic here, which converts data to episodes
-        var episodes = [Episode]()
+        let episodes = [Episode]()
+
+        // Since we're not modifying `episodes` after its declaration,
+        // we declare it as 'let'. If you later add code that modifies it,
+        // you'll need to change it back to 'var'.
 
         // Parsing logic to convert 'data' into 'episodes'
         // For example purposes, let's assume you populate it like this:

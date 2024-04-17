@@ -118,35 +118,29 @@ struct ContentView: View {
                                     
                                     ScrollView {
                                         VStack(spacing: 0) {
-                                            if let podcast = selectedPodcast {
-                                                ForEach(viewModel.episodes, id: \.id) { episode in
-                                                    EpisodeRowView(
-                                                        episode: Episode(
-                                                            title: episode.title,
-                                                            link: episode.link,
-                                                            description: episode.description.simplifiedHTML(), // HTML stripped description
-                                                            mediaURL: episode.mediaURL,
-                                                            date: episode.date,
-                                                            duration: episode.duration
-                                                            // ... add other properties as needed
-                                                        ),
-                                                        selectedEpisode: .constant(nil),
-                                                        showingEpisodeDetail: .constant(false),
-                                                        onDoubleTap: { /* Implement double tap action if needed */ },
-                                                        onPlay: { /* Implement play action if needed */ },
-                                                        viewModel: viewModel
-                                                    )
-                                                    .padding(.horizontal, 8) // Horizontal padding for the content
-                                                    .padding(.vertical, 4) // Vertical padding for each item
-
-                                                    Divider()
-                                                        .background(Color.gray.opacity(0.3))
-                                                }
-                                            } else {
-                                                Text("Select a podcast to view episodes")
-                                                    .foregroundColor(.gray)
-                                                    .padding(10)
-                                                    .frame(maxWidth: .infinity, alignment: .center) // Center the placeholder text
+                                            // Since we only need to know selectedPodcast is not nil, no need for 'if let'
+                                            ForEach(viewModel.episodes, id: \.id) { episode in
+                                                EpisodeRowView(
+                                                    episode: Episode(
+                                                        title: episode.title,
+                                                        link: episode.link,
+                                                        description: episode.description.simplifiedHTML(), // HTML stripped description
+                                                        mediaURL: episode.mediaURL,
+                                                        date: episode.date,
+                                                        duration: episode.duration
+                                                        // ... add other properties as needed
+                                                    ),
+                                                    selectedEpisode: .constant(nil),
+                                                    showingEpisodeDetail: .constant(false),
+                                                    onDoubleTap: { /* Implement double tap action if needed */ },
+                                                    onPlay: { /* Implement play action if needed */ },
+                                                    viewModel: viewModel
+                                                )
+                                                .padding(.horizontal, 8) // Horizontal padding for the content
+                                                .padding(.vertical, 4) // Vertical padding for each item
+                                                
+                                                Divider()
+                                                    .background(Color.gray.opacity(0.3))
                                             }
                                         }
                                     }
@@ -520,7 +514,7 @@ struct ContentView: View {
             VStack {
                 TextField("Search...", text: $viewModel.searchText)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .onChange(of: viewModel.searchText) { newValue in
+                    .onChange(of: viewModel.searchText) { _, newValue in
                         viewModel.searchSubject.send(newValue)
                     }
 
@@ -723,7 +717,7 @@ struct ContentView: View {
             VStack {
                 TextField("Search...", text: $viewModel.searchText)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .onChange(of: viewModel.searchText) { newValue in
+                    .onChange(of: viewModel.searchText) { _, newValue in
                         viewModel.searchPodcasts(with: newValue)
                     }
 
