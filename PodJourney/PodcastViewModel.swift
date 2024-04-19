@@ -92,6 +92,11 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     private var playerItemObserver: NSKeyValueObservation?
     private var searchDelayPublisher: AnyPublisher<String, Never>?
     private var isParsingCancelled = false
+    private let dateFormatter: DateFormatter = {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
+            return formatter
+        }()
     weak var delegate: MediaPlayerDelegate?
     var timeObserverToken: Any?
     var shouldAutoPlay = false
@@ -128,10 +133,70 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
             print("PodcastViewModel initialized with direct AVPlayer control.")
         }
     
-    func clearEpisodesForSearch() {
-        DispatchQueue.main.async {
-            self.searchEpisodes = [] // Assuming `searchEpisodes` holds your search-related episodes
+    // Method to fetch episodes for a selected podcast in search results
+    func searchFetchEpisodes(for podcast: Podcast) async {
+        guard let url = URL(string: podcast.feedUrl) else {
+            print("Invalid feed URL for podcast: \(podcast.trackName)")
+            return
         }
+
+        // Clear previous search episodes immediately to prevent old data from being displayed
+        DispatchQueue.main.async {
+            self.searchEpisodes = []
+        }
+
+        // Create an instance of FeedParser and parse the feed asynchronously
+        let parser = FeedParser(URL: url)
+        parser.parseAsync(queue: DispatchQueue.global(qos: .userInitiated)) { [weak self] result in
+            guard let self = self else { return }
+            switch result {
+            case .success(let feed):
+                // Process the feed if it's an RSS type
+                if let rssFeed = feed.rssFeed {
+                    let episodes = self.parseEpisodes(from: rssFeed)
+                    DispatchQueue.main.async {
+                        self.searchEpisodes = episodes
+                        print("Loaded \(episodes.count) episodes for \(podcast.trackName)")
+                    }
+                } else {
+                    DispatchQueue.main.async {
+                        print("The feed is not an RSS feed.")
+                    }
+                }
+            case .failure(let error):
+                DispatchQueue.main.async {
+                    print("Error parsing feed: \(error.localizedDescription)")
+                    self.searchEpisodes = []  // Clear episodes if there is an error
+                }
+            }
+        }
+    }
+
+    // Helper method to parse episodes from an RSSFeed
+    private func parseEpisodes(from rssFeed: FeedKit.RSSFeed) -> [Episode] {
+        return rssFeed.items?.compactMap { item -> Episode? in
+            guard let title = item.title,
+                  let link = item.link,
+                  let description = item.description,
+                  let enclosure = item.enclosure,
+                  let url = URL(string: enclosure.attributes?.url ?? ""),
+                  let pubDate = item.pubDate else {
+                return nil
+            }
+            // Formatting duration from ITunesNamespace's iTunesDuration
+            let durationString = formatDuration(from: item.iTunes?.iTunesDuration)
+            return Episode(
+                title: title,
+                link: link,
+                description: description,
+                mediaURL: url,
+                date: dateFormatter.string(from: pubDate),
+                author: item.author ?? "Unknown",
+                category: item.categories?.first?.value ?? "General",
+                rating: item.iTunes?.iTunesExplicit == "yes" ? "Explicit" : "Clean",
+                duration: durationString
+            )
+        } ?? []
     }
     
     // In PodcastViewModel
@@ -146,6 +211,12 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
             self.episodes = []
         }
     }
+    
+    func clearEpisodesForSearch() {
+            DispatchQueue.main.async {
+                self.episodes = []  // Modify to affect the correct episodes array
+            }
+        }
     
     // Method to load the default episodes for your example podcast
     func loadDefaultEpisodes() async {

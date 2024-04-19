@@ -32,6 +32,61 @@ extension Color {
     }
 }
 
+struct PodcastEpisode: Identifiable {
+    let id: UUID = UUID()
+    let title: String
+    let releaseDate: String
+}
+
+struct PodcastView: View {
+    var podcast: PodcastEpisode
+    @Binding var selectedPodcast: PodcastEpisode?
+    
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading) {
+                Text(podcast.title)
+                    .foregroundColor(selectedPodcast?.id == podcast.id ? .white : .black)
+                    .padding()
+                
+                Text(podcast.releaseDate)
+                    .font(.caption)
+                    .foregroundColor(.gray)
+            }
+            
+            Spacer()
+            
+            if selectedPodcast?.id == podcast.id {
+                Image(systemName: "play.circle.fill")
+                    .imageScale(.large)
+                    .foregroundColor(.blue)
+                
+                Button(action: {
+                    print("Info for \(podcast.title)")
+                }) {
+                    Image(systemName: "info.circle")
+                        .imageScale(.large)
+                }
+            }
+        }
+        .padding(.horizontal)
+        .background(selectedPodcast?.id == podcast.id ? Color.blue : Color.clear)
+        .onTapGesture {
+            self.selectedPodcast = self.podcast
+        }
+        .onHover { hover in
+            if hover {
+                self.selectedPodcast = self.podcast
+            }
+        }
+        .cornerRadius(5)
+        .overlay(
+            RoundedRectangle(cornerRadius: 5)
+                .stroke(Color.blue, lineWidth: selectedPodcast?.id == podcast.id ? 2 : 0)
+        )
+    }
+}
+
 struct ContentView: View {
     @EnvironmentObject var viewModel: PodcastViewModel
     @State private var selectedEpisodeID: UUID?
@@ -106,7 +161,6 @@ struct ContentView: View {
                             if showingSearch {
                                 SearchView(showingSearch: $showingSearch, selectedPodcast: $selectedPodcast)
                                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                    .background(Color.red.opacity(0.2)) // Temporarily color the background to check visibility
                                     .onAppear {
                                         Task {
                                             viewModel.clearEpisodes()
@@ -490,14 +544,13 @@ struct ContentView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.red.opacity(0.2)) // Temporarily color the background to check visibility
                 
                 // This is the right side of the HStack, where you may want to display the selected podcast's episodes or details
                 // If selectedPodcast is non-nil, show the details or episodes for that podcast
                 if let _ = selectedPodcast {
                     EpisodesListView(episodes: viewModel.searchEpisodes)
                 } // Pass the search episodes array
-                    // Here you can call a detail view or an episodes list view for the selected podcast    
+                    // Here you can call a detail view or an episodes list view for the selected podcast
             }
         }
         
@@ -677,19 +730,130 @@ struct ContentView: View {
         }
     }
     
+    // MARK - Episodes list in search view
     struct EpisodesListView: View {
         @EnvironmentObject var viewModel: PodcastViewModel
         @State private var selectedEpisode: Episode?
         let episodes: [Episode]
 
         var body: some View {
-            List(viewModel.episodes, id: \.id) { episode in
-                Text(episode.title)
-                    .onTapGesture {
-                        self.selectedEpisode = episode
+            ScrollView {
+                VStack(spacing: 10) {
+                    ForEach(viewModel.episodes, id: \.id) { episode in
+                        SearchEpisodeRow(episode: episode, selectedEpisode: $selectedEpisode, showingEpisodeDetail: .constant(false), onDoubleTap: {}, onPlay: {
+                            // Add your play action here
+                        }, viewModel: viewModel)
+                        .onTapGesture {
+                            self.selectedEpisode = episode
+                            // Add any additional actions here if needed
+                        }
                     }
+                }
+                .padding() // Padding around the VStack inside the ScrollView
             }
-            EpisodeView(selectedEpisode: $selectedEpisode)
+        }
+    }
+
+    struct SearchEpisodeRow: View {
+        let episode: Episode
+        @Binding var selectedEpisode: Episode?
+        @Binding var showingEpisodeDetail: Bool
+        var onDoubleTap: () -> Void
+        var onPlay: () -> Void
+        var viewModel: PodcastViewModel
+
+        @State private var isHovering = false
+
+        let highlightColor = Color(red: 27 / 255.0, green: 84 / 255.0, blue: 199 / 255.0)
+        let hoverColor = Color.gray.opacity(0.2)
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    // Left side content, including title, description, and duration
+                    VStack(alignment: .leading, spacing: 4) {
+                        Spacer(minLength: 6)
+                        Text(episode.title)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .lineLimit(2)
+                        Text(episode.description)
+                            .font(.caption)
+                            .foregroundColor(.white)
+                            .lineLimit(2)
+                        Spacer(minLength: 6)
+                        Text(parseDuration(duration: episode.duration))
+                            .font(.caption)
+                            .foregroundColor(.white)
+                            .offset(x: 0, y: -5) // Nudge duration up
+                    }
+                    Spacer() // Pushes content to the sides
+
+                    // Right side content, with play button on top and info button centered
+                    VStack {
+                        if isHovering {
+                            playButton
+                                .offset(x: 20, y: 0) // Nudge play button to the right
+                        }
+                        Spacer() // This will dynamically resize
+
+                        infoButton
+                            .offset(x: 20, y: -5) // Nudge info button to the right/up
+
+                        Spacer() // This will dynamically resize
+                    }
+                    .padding(.trailing, 0) // Add more padding to push the buttons further to the right
+                }
+                .padding(.horizontal, 8) // Add horizontal padding to the HStack
+                .frame(height: 112) // Fixed height for the entire row
+                .background(RoundedRectangle(cornerRadius: 8).fill(selectedEpisode?.id == episode.id ? highlightColor : Color.clear))
+                .background(isHovering && selectedEpisode?.id != episode.id ? hoverColor : Color.clear)
+                .cornerRadius(8)
+                .onTapGesture {
+                    self.selectedEpisode = episode
+                    Task {
+                        viewModel.selectEpisode(episode)
+                    }
+                }
+                .onHover { hover in
+                    self.isHovering = hover
+                }
+            }
+        }
+
+        private func parseDuration(duration: String) -> String {
+            let components = duration.components(separatedBy: CharacterSet.decimalDigits.inverted).compactMap { Int($0) }
+            if components.count == 3 {
+                return String(format: "%d:%02d:%02d", components[0], components[1], components[2])
+            } else if components.count == 2 {
+                return String(format: "0:%02d:%02d", components[0], components[1])
+            } else if components.count == 1 {
+                return String(format: "0:00:%02d", components[0])
+            }
+            return "0:00:00" // Default case if parsing fails
+        }
+
+        private var playButton: some View {
+            Button(action: onPlay) {
+                Image(systemName: "play")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 15, height: 15)
+            }
+            .buttonStyle(BorderlessButtonStyle())
+        }
+
+        private var infoButton: some View {
+            Button(action: {
+                self.selectedEpisode = episode
+                self.showingEpisodeDetail = true
+            }) {
+                Image(systemName: "info.circle")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 15, height: 15)
+            }
+            .buttonStyle(BorderlessButtonStyle())
         }
     }
     
@@ -971,6 +1135,7 @@ struct ContentView: View {
         }
     }
     
+    /*
     struct EpisodeView: View {
         @EnvironmentObject var viewModel: PodcastViewModel
         @Binding var selectedEpisode: Episode?
@@ -991,6 +1156,7 @@ struct ContentView: View {
             }
         }
     }
+    */
     
     struct EpisodeProgressBar: View {
         @ObservedObject var viewModel: PodcastViewModel
