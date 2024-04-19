@@ -738,7 +738,7 @@ struct ContentView: View {
 
         var body: some View {
             ScrollView {
-                VStack(spacing: 10) {
+                LazyVStack(spacing: 0) {  // Set spacing to 0 to manage space with dividers explicitly
                     ForEach(viewModel.episodes, id: \.id) { episode in
                         SearchEpisodeRow(episode: episode, selectedEpisode: $selectedEpisode, showingEpisodeDetail: .constant(false), onDoubleTap: {}, onPlay: {
                             // Add your play action here
@@ -747,9 +747,11 @@ struct ContentView: View {
                             self.selectedEpisode = episode
                             // Add any additional actions here if needed
                         }
+                        Divider()  // Add a divider after each row
+                            .padding(.leading, 8) // Add padding to align with the horizontal padding of the row content
                     }
                 }
-                .padding() // Padding around the VStack inside the ScrollView
+                .padding() // Padding around the LazyVStack inside the ScrollView
             }
         }
     }
