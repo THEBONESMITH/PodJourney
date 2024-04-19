@@ -801,6 +801,11 @@ struct ContentView: View {
                             .offset(x: 20, y: -5) // Nudge info button to the right/up
 
                         Spacer() // This will dynamically resize
+                        
+                        Text(EpisodeRowView.formatDate(episode.date)) // Display formatted date
+                            .font(.caption)
+                            .foregroundColor(.white)
+                            .offset(x: 0, y: -5) // Nudge date up
                     }
                     .padding(.trailing, 0) // Add more padding to push the buttons further to the right
                 }
@@ -855,6 +860,16 @@ struct ContentView: View {
             }
             .buttonStyle(BorderlessButtonStyle())
         }
+        
+        static func formatDate(_ dateString: String) -> String {
+                let inputFormatter = DateFormatter()
+                inputFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
+                guard let date = inputFormatter.date(from: dateString) else { return dateString }
+                
+                let outputFormatter = DateFormatter()
+                outputFormatter.dateFormat = "dd/MM/yyyy"
+                return outputFormatter.string(from: date)
+            }
     }
     
     struct EpisodeDetailView: View {
