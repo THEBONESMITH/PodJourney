@@ -511,28 +511,31 @@ struct ContentView: View {
         @Binding var selectedPodcast: Podcast?
         @EnvironmentObject var viewModel: PodcastViewModel
         
-        // resultsList is now a computed property of SearchView
         var resultsList: some View {
             ScrollView {
-                VStack {  // Using VStack to align the rows vertically
+                VStack(alignment: .leading, spacing: 0) {  // Aligning content to the leading edge
                     ForEach(viewModel.searchResults, id: \.id) { podcast in
                         PodcastRow(podcast: podcast, selectedPodcast: $selectedPodcast, viewModel: viewModel)
                             .padding(.vertical, 4)
                             .onTapGesture {
                                 self.selectedPodcast = podcast
-                                // Optional: Perform any actions needed when a podcast is selected
+                                Task {
+                                    await viewModel.fetchEpisodes(for: podcast)
+                                }
                             }
-                            .background(selectedPodcast?.id == podcast.id ? Color.gray.opacity(0.2) : Color.clear)  // Highlight the selected podcast
+                            .background(selectedPodcast?.id == podcast.id ? Color.gray.opacity(0.2) : Color.clear)
                     }
                 }
+                .padding(.horizontal)  // Adding horizontal padding for better alignment
             }
         }
         
         var body: some View {
-            HStack { // This HStack will hold both the search field and the results
-                VStack {
+            HStack(alignment: .top) { // Aligning content to the top
+                VStack(alignment: .leading) { // Aligning content to the leading edge
                     TextField("Search...", text: $viewModel.searchText)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .frame(width: 300) // Set the width of the search field
                         .onChange(of: viewModel.searchText) { _, newValue in
                             viewModel.searchSubject.send(newValue)
                         }
@@ -540,18 +543,25 @@ struct ContentView: View {
                     if viewModel.isSearching {
                         ProgressView("Searching...")
                     } else {
-                        resultsList // Call the resultsList here
+                        resultsList
                     }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .padding(.leading) // Ensure everything is aligned to the left
+
+                Spacer() // This pushes all content to the left
                 
-                // This is the right side of the HStack, where you may want to display the selected podcast's episodes or details
-                // If selectedPodcast is non-nil, show the details or episodes for that podcast
-                if let _ = selectedPodcast {
+                // Right side of the HStack, displaying episodes or details
+                if let selectedPod = selectedPodcast {
                     EpisodesListView(episodes: viewModel.searchEpisodes)
-                } // Pass the search episodes array
-                    // Here you can call a detail view or an episodes list view for the selected podcast
+                        .frame(maxWidth: .infinity)
+                        .onAppear {
+                            Task {
+                                await viewModel.fetchEpisodes(for: selectedPod)
+                            }
+                        }
+                }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading) // Maximize width and align content to the left
         }
         
         struct PodcastRow: View {
@@ -597,27 +607,11 @@ struct ContentView: View {
                             Spacer(minLength: 6)
                         }
                         Spacer()
-                        
-                        VStack {
-                            if isHovering {
-                                Button(action: {
-                                    // Define action for play button
-                                }) {
-                                    Image(systemName: "play.circle")
-                                        .resizable()
-                                        .scaledToFit()
-                                        .frame(width: 30, height: 30)
-                                        .foregroundColor(.white)
-                                }
-                                .buttonStyle(BorderlessButtonStyle())
-                            }
-                            Spacer()
-                        }
-                        .padding(.trailing, 20) // Add more padding to push the buttons further to the right
                     }
                     .padding(.horizontal, 8)
                 }
                 .frame(height: 112)
+                .frame(maxWidth: 300) // Set the maximum width here
                 .background(RoundedRectangle(cornerRadius: 8).fill(selectedPodcast?.id == podcast.id ? highlightColor : (isHovering ? hoverColor : Color.clear)))
                 .cornerRadius(8)
                 .onHover { hover in
@@ -734,24 +728,33 @@ struct ContentView: View {
     struct EpisodesListView: View {
         @EnvironmentObject var viewModel: PodcastViewModel
         @State private var selectedEpisode: Episode?
-        let episodes: [Episode]
+        var episodes: [Episode]
 
         var body: some View {
             ScrollView {
-                LazyVStack(spacing: 0) {  // Set spacing to 0 to manage space with dividers explicitly
-                    ForEach(viewModel.episodes, id: \.id) { episode in
-                        SearchEpisodeRow(episode: episode, selectedEpisode: $selectedEpisode, showingEpisodeDetail: .constant(false), onDoubleTap: {}, onPlay: {
+                LazyVStack(spacing: 0) {
+                    ForEach(viewModel.episodes.indices, id: \.self) { index in
+                        SearchEpisodeRow(episode: viewModel.episodes[index], selectedEpisode: $selectedEpisode, showingEpisodeDetail: .constant(false), onDoubleTap: {}, onPlay: {
                             // Add your play action here
                         }, viewModel: viewModel)
                         .onTapGesture {
-                            self.selectedEpisode = episode
-                            // Add any additional actions here if needed
+                            self.selectedEpisode = viewModel.episodes[index]
                         }
-                        Divider()  // Add a divider after each row
-                            .padding(.leading, 8) // Add padding to align with the horizontal padding of the row content
+
+                        if index < viewModel.episodes.count - 1 {
+                            VStack {
+                                CustomDivider(color: Color.gray.opacity(0.3), thickness: 1)
+                            }
+                            .padding(.horizontal, 8)
+                        }
                     }
                 }
-                .padding() // Padding around the LazyVStack inside the ScrollView
+            }
+            .frame(maxWidth: .infinity) // Ensure the ScrollView fills the available horizontal space
+            .onAppear {
+                Task {
+                    await viewModel.loadDefaultEpisodes()
+                }
             }
         }
     }
@@ -765,7 +768,7 @@ struct ContentView: View {
         var viewModel: PodcastViewModel
 
         @State private var isHovering = false
-
+        
         let highlightColor = Color(red: 27 / 255.0, green: 84 / 255.0, blue: 199 / 255.0)
         let hoverColor = Color.gray.opacity(0.2)
 
@@ -795,7 +798,7 @@ struct ContentView: View {
                     VStack {
                         if isHovering {
                             playButton
-                                .offset(x: 20, y: 0) // Nudge play button to the right
+                                .offset(x: 20, y: 5) // Nudge play button to the right/down
                         }
                         Spacer() // This will dynamically resize
 
@@ -803,25 +806,19 @@ struct ContentView: View {
                             .offset(x: 20, y: -5) // Nudge info button to the right/up
 
                         Spacer() // This will dynamically resize
-                        
-                        Text(EpisodeRowView.formatDate(episode.date)) // Display formatted date
+
+                        Text(SearchEpisodeRow.formatDate(episode.date)) // Display formatted date
                             .font(.caption)
                             .foregroundColor(.white)
                             .offset(x: 0, y: -5) // Nudge date up
                     }
                     .padding(.trailing, 0) // Add more padding to push the buttons further to the right
                 }
-                .padding(.horizontal, 8) // Add horizontal padding to the HStack
-                .frame(height: 112) // Fixed height for the entire row
+                .padding(.horizontal, 8)
+                .frame(height: 112)
                 .background(RoundedRectangle(cornerRadius: 8).fill(selectedEpisode?.id == episode.id ? highlightColor : Color.clear))
                 .background(isHovering && selectedEpisode?.id != episode.id ? hoverColor : Color.clear)
                 .cornerRadius(8)
-                .onTapGesture {
-                    self.selectedEpisode = episode
-                    Task {
-                        viewModel.selectEpisode(episode)
-                    }
-                }
                 .onHover { hover in
                     self.isHovering = hover
                 }
@@ -829,17 +826,17 @@ struct ContentView: View {
         }
 
         private func parseDuration(duration: String) -> String {
-            let components = duration.components(separatedBy: CharacterSet.decimalDigits.inverted).compactMap { Int($0) }
-            if components.count == 3 {
-                return String(format: "%d:%02d:%02d", components[0], components[1], components[2])
-            } else if components.count == 2 {
-                return String(format: "0:%02d:%02d", components[0], components[1])
-            } else if components.count == 1 {
-                return String(format: "0:00:%02d", components[0])
+                let components = duration.components(separatedBy: CharacterSet.decimalDigits.inverted).compactMap { Int($0) }
+                if components.count == 3 {
+                    return String(format: "%d:%02d:%02d", components[0], components[1], components[2])
+                } else if components.count == 2 {
+                    return String(format: "0:%02d:%02d", components[0], components[1])
+                } else if components.count == 1 {
+                    return String(format: "0:00:%02d", components[0])
+                }
+                return "0:00:00" // Default case if parsing fails
             }
-            return "0:00:00" // Default case if parsing fails
-        }
-
+        
         private var playButton: some View {
             Button(action: onPlay) {
                 Image(systemName: "play")
@@ -862,17 +859,17 @@ struct ContentView: View {
             }
             .buttonStyle(BorderlessButtonStyle())
         }
-        
+
         static func formatDate(_ dateString: String) -> String {
-                let inputFormatter = DateFormatter()
-                inputFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
-                guard let date = inputFormatter.date(from: dateString) else { return dateString }
-                
-                let outputFormatter = DateFormatter()
-                outputFormatter.dateFormat = "dd/MM/yyyy"
-                return outputFormatter.string(from: date)
-            }
-    }
+            let inputFormatter = DateFormatter()
+            inputFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
+            guard let date = inputFormatter.date(from: dateString) else { return dateString }
+
+            let outputFormatter = DateFormatter()
+            outputFormatter.dateFormat = "dd/MM/yyyy"
+            return outputFormatter.string(from: date)
+        }
+    } 
     
     struct EpisodeDetailView: View {
         var episode: Episode
