@@ -861,15 +861,32 @@ struct ContentView: View {
         }
 
         static func formatDate(_ dateString: String) -> String {
-            let inputFormatter = DateFormatter()
-            inputFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
-            guard let date = inputFormatter.date(from: dateString) else { return dateString }
+                let inputFormatter = DateFormatter()
+                inputFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
+                
+                guard let date = inputFormatter.date(from: dateString) else { return dateString }
+                
+                let calendar = Calendar.current
+                if calendar.isDateInToday(date) {
+                    return "Today"
+                } else if isDateWithinLastSixDays(date) {
+                    let dayFormatter = DateFormatter()
+                    dayFormatter.dateFormat = "EEEE" // Day of the week
+                    return dayFormatter.string(from: date)
+                } else {
+                    let outputFormatter = DateFormatter()
+                    outputFormatter.dateFormat = "dd/MM/yyyy"
+                    return outputFormatter.string(from: date)
+                }
+            }
 
-            let outputFormatter = DateFormatter()
-            outputFormatter.dateFormat = "dd/MM/yyyy"
-            return outputFormatter.string(from: date)
-        }
-    } 
+            private static func isDateWithinLastSixDays(_ date: Date) -> Bool {
+                let calendar = Calendar.current
+                let now = Date()
+                let sixDaysAgo = calendar.date(byAdding: .day, value: -6, to: now)!
+                return date > sixDaysAgo && !calendar.isDateInToday(date)
+            }
+    }
     
     struct EpisodeDetailView: View {
         var episode: Episode
@@ -929,6 +946,7 @@ struct ContentView: View {
         var viewModel: PodcastViewModel
 
         @State private var isHovering = false
+        @State private var dateLabelAdjusted: Bool = false  // State to force update
 
         let highlightColor = Color(red: 27 / 255.0, green: 84 / 255.0, blue: 199 / 255.0)
         let hoverColor = Color.gray.opacity(0.2)
@@ -938,7 +956,6 @@ struct ContentView: View {
                 HStack {
                     // Left side content, including title, description, and duration
                     VStack(alignment: .leading, spacing: 4) {
-                        Spacer(minLength: 6)
                         Text(episode.title)
                             .fontWeight(.bold)
                             .foregroundColor(.white)
@@ -947,64 +964,80 @@ struct ContentView: View {
                             .font(.caption)
                             .foregroundColor(.white)
                             .lineLimit(2)
-                        Spacer(minLength: 6)
                         Text(parseDuration(duration: episode.duration))
                             .font(.caption)
                             .foregroundColor(.white)
-                            .offset(x: 0, y: -5) // Nudge duration up
+                            .offset(x: dateLabelAdjusted ? 50 : 0, y: dateLabelAdjusted ? 20 : 0)  // Apply conditional offset
                     }
                     Spacer() // Pushes content to the sides
 
-                    // Right side content, with play button on top and info button centered
-                    VStack {
-                        // Fixed size container for the play button
-                        VStack {
-                            if isHovering {
-                                playButton
-                                    .offset(x: 20, y: 0) // Nudge play button to the right
-                            }
+                    // Right side content with play button, info button, and date label
+                    VStack(alignment: .trailing) {
+                        if isHovering {
+                            playButton
+                                .offset(x: needsXOffsetAdjustmentForPlayButton ? 0 : 0,
+                                        y: needsYOffsetAdjustmentForPlayButton ? 0 : 0)
                         }
-                        .frame(height: 30) // Adjust the height as needed for your layout
-
-                        Spacer() // This will dynamically resize
-
                         infoButton
-                            .offset(x: 20, y: -5) // Nudge info button to the right/up
-
-                        Spacer() // This will dynamically resize
+                            .offset(x: needsXOffsetAdjustmentForInfoButton ? 0 : 0,
+                                    y: needsYOffsetAdjustmentForInfoButton ? 0 : 0)
                         
                         Text(EpisodeRowView.formatDate(episode.date)) // Display formatted date
                             .font(.caption)
                             .foregroundColor(.white)
-                            .offset(x: 0, y: -5) // Nudge date up
+                            .padding(.top, 10) // Space between info button and date
+                            .offset(x: needsXOffsetAdjustmentForDate ? -30 : 30,
+                                    y: needsYOffsetAdjustmentForDate ? 0 : 0)
+                            .onChange(of: episode.date) { oldDate, newDate in
+                                // Update the state based on whether the date requires special formatting
+                                dateLabelAdjusted = isDateLabelAdjusted(dateString: newDate)
+                            }
+                            .onAppear {
+                                // Set initial state when the view appears
+                                dateLabelAdjusted = isDateLabelAdjusted(dateString: episode.date)
+                            }
+                            .frame(width: 100) // Ensure sufficient space for the right side elements
+                            .padding(.trailing, 10) // Adjusts padding to align content within the container
                     }
-                    .padding(.trailing, 0) // Add more padding to push the buttons further to the right
                 }
-                .padding(.horizontal, 8) // Add horizontal padding to the HStack
-            }
-            .frame(height: 112) // Fixed height for the entire row
-            .background(RoundedRectangle(cornerRadius: 8).fill(selectedEpisode?.id == episode.id ? highlightColor : Color.clear))
-            .background(isHovering && selectedEpisode?.id != episode.id ? hoverColor : Color.clear)
-            .cornerRadius(8)
-            .onTapGesture {
-                print("Tap recognized, episode selected: \(episode.title)")
-                self.selectedEpisode = episode
-                Task {
-                    viewModel.selectEpisode(episode)
+                .padding(.horizontal, 8)
+                .frame(height: 112)
+                .background(RoundedRectangle(cornerRadius: 8).fill(selectedEpisode?.id == episode.id ? highlightColor : Color.clear))
+                .background(isHovering && selectedEpisode?.id != episode.id ? hoverColor : Color.clear)
+                .cornerRadius(8)
+                .onHover { hover in
+                    self.isHovering = hover
                 }
-            }
-            .simultaneousGesture(
-                TapGesture(count: 2).onEnded {
+                .onTapGesture {
+                    self.selectedEpisode = episode
                     Task {
-                        viewModel.userRequestsPlayback(for: episode)
+                        viewModel.selectEpisode(episode)
                     }
                 }
-            )
-            .onHover { hover in
-                self.isHovering = hover
             }
         }
 
+        // Example condition functions for X and Y offset determination
+        var needsXOffsetAdjustmentForDuration: Bool { return true }
+        var needsYOffsetAdjustmentForDuration: Bool { return false }
+        var needsXOffsetAdjustmentForPlayButton: Bool { return true }
+        var needsYOffsetAdjustmentForPlayButton: Bool { return true }
+        var needsXOffsetAdjustmentForInfoButton: Bool { return false }
+        var needsYOffsetAdjustmentForInfoButton: Bool { return true }
+        var needsXOffsetAdjustmentForDate: Bool { return true }
+        var needsYOffsetAdjustmentForDate: Bool { return isDateLabelAdjusted(dateString: episode.date) }
+
+        func isDateLabelAdjusted(dateString: String) -> Bool {
+            // Implement logic to determine if the date should be treated as a special case (e.g., 'Today' or a weekday name)
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
+            if let date = dateFormatter.date(from: dateString) {
+                let calendar = Calendar.current
+                return calendar.isDateInToday(date) || calendar.isDate(date, equalTo: Date(), toGranularity: .day)
+            }
+            return false
+        }
+        
         private func parseDuration(duration: String) -> String {
             let components = duration.components(separatedBy: CharacterSet.decimalDigits.inverted).compactMap { Int($0) }
             if components.count == 3 {
@@ -1043,21 +1076,23 @@ struct ContentView: View {
         static func formatDate(_ dateString: String) -> String {
                 let inputFormatter = DateFormatter()
                 inputFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
+                
                 guard let date = inputFormatter.date(from: dateString) else { return dateString }
                 
-                let outputFormatter = DateFormatter()
-                outputFormatter.dateFormat = "dd/MM/yyyy"
-                return outputFormatter.string(from: date)
+                let calendar = Calendar.current
+                if calendar.isDateInToday(date) {
+                    return "Today"
+                } else if isDateWithinLastSixDays(date) {
+                    let dayFormatter = DateFormatter()
+                    dayFormatter.dateFormat = "EEEE" // Day of the week
+                    return dayFormatter.string(from: date)
+                } else {
+                    let outputFormatter = DateFormatter()
+                    outputFormatter.dateFormat = "dd/MM/yyyy"
+                    return outputFormatter.string(from: date)
+                }
             }
     }
-    
-    /*
-    @ViewBuilder
-    private var backgroundView: some View {
-        RoundedRectangle(cornerRadius: 8)
-            .fill(selectedEpisode?.id == episode.id ? customBlue : Color.clear)
-    }
-    */
     
     var controlButtonsView: some View {
             HStack {
@@ -1149,29 +1184,6 @@ struct ContentView: View {
         }
     }
     
-    /*
-    struct EpisodeView: View {
-        @EnvironmentObject var viewModel: PodcastViewModel
-        @Binding var selectedEpisode: Episode?
-
-        var body: some View {
-            if let episode = selectedEpisode {
-                Button(viewModel.isPlaying && viewModel.currentlyPlaying?.id == episode.id ? "Pause Episode" : "Play Episode") {
-                    if viewModel.isPlaying && viewModel.currentlyPlaying?.id == episode.id {
-                        viewModel.pausePlayback()
-                    } else {
-                        Task {
-                            await viewModel.prepareAndPlayEpisode(episode, autoPlay: true)
-                        }
-                    }
-                }
-            } else {
-                Text("Select an episode to play")
-            }
-        }
-    }
-    */
-    
     struct EpisodeProgressBar: View {
         @ObservedObject var viewModel: PodcastViewModel
         
@@ -1188,5 +1200,40 @@ struct ContentView: View {
             .frame(height: 4) // Control the height of the progress bar
             .padding(.horizontal) // Add some horizontal padding if needed
         }
+    }
+}
+
+extension ContentView {
+    static func isDateWithinLastSixDays(_ date: Date) -> Bool {
+            let calendar = Calendar.current
+            let sixDaysAgo = calendar.date(byAdding: .day, value: -6, to: Date())!
+            return date > sixDaysAgo && !calendar.isDateInToday(date)
+        }
+
+    static func formatDate(_ dateString: String) -> String {
+        let inputFormatter = DateFormatter()
+        inputFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
+
+        // Try to convert the dateString to a Date object
+        if let date = inputFormatter.date(from: dateString) {
+            let now = Date()
+            let weekAgo = Calendar.current.date(byAdding: .day, value: -6, to: now)!
+
+            // Check if the date is within the last week
+            if date >= weekAgo {
+                let weekday = DateFormatter()
+                weekday.dateFormat = "EEEE"
+                if Calendar.current.isDateInToday(date) {
+                    return "Today" // Return "Today" if it's the current date
+                } else {
+                    return weekday.string(from: date) // Return the day of the week
+                }
+            } else {
+                let outputFormatter = DateFormatter()
+                outputFormatter.dateFormat = "dd/MM/yyyy"
+                return outputFormatter.string(from: date) // Return formatted date
+            }
+        }
+        return dateString // Return the original string if conversion fails
     }
 }
