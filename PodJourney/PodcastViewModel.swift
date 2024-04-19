@@ -141,33 +141,32 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         }
 
         // Clear previous search episodes immediately to prevent old data from being displayed
-        DispatchQueue.main.async {
+        await MainActor.run {
             self.searchEpisodes = []
         }
 
         // Create an instance of FeedParser and parse the feed asynchronously
         let parser = FeedParser(URL: url)
-        parser.parseAsync(queue: DispatchQueue.global(qos: .userInitiated)) { [weak self] result in
-            guard let self = self else { return }
+        let result = await withCheckedContinuation { continuation in
+            parser.parseAsync(queue: DispatchQueue.global(qos: .userInitiated)) { result in
+                continuation.resume(returning: result)
+            }
+        }
+
+        await MainActor.run {
             switch result {
             case .success(let feed):
                 // Process the feed if it's an RSS type
                 if let rssFeed = feed.rssFeed {
-                    let episodes = self.parseEpisodes(from: rssFeed)
-                    DispatchQueue.main.async {
-                        self.searchEpisodes = episodes
-                        print("Loaded \(episodes.count) episodes for \(podcast.trackName)")
-                    }
+                    let episodes = parseEpisodes(from: rssFeed)
+                    self.searchEpisodes = episodes
+                    print("Loaded \(episodes.count) episodes for \(podcast.trackName)")
                 } else {
-                    DispatchQueue.main.async {
-                        print("The feed is not an RSS feed.")
-                    }
+                    print("The feed is not an RSS feed.")
                 }
             case .failure(let error):
-                DispatchQueue.main.async {
-                    print("Error parsing feed: \(error.localizedDescription)")
-                    self.searchEpisodes = []  // Clear episodes if there is an error
-                }
+                print("Error parsing feed: \(error.localizedDescription)")
+                self.searchEpisodes = []  // Clear episodes if there is an error
             }
         }
     }
@@ -183,7 +182,6 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
                   let pubDate = item.pubDate else {
                 return nil
             }
-            // Formatting duration from ITunesNamespace's iTunesDuration
             let durationString = formatDuration(from: item.iTunes?.iTunesDuration)
             return Episode(
                 title: title,

@@ -264,7 +264,7 @@ struct ContentView: View {
         }
     }
     
-    // MARK:PodcastFooter
+    // MARK: - PodcastFooter
     struct PodcastFooter: View {
         @EnvironmentObject var viewModel: PodcastViewModel
         @State private var animateText: Bool = false
