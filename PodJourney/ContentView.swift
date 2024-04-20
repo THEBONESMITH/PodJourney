@@ -723,7 +723,7 @@ struct ContentView: View {
         }
     }
     
-    // MARK - Episodes list in search view
+    // MARK: - Episodes list in search view
     struct EpisodesListView: View {
         @EnvironmentObject var viewModel: PodcastViewModel
         @State private var selectedEpisode: Episode?
@@ -767,6 +767,7 @@ struct ContentView: View {
         var viewModel: PodcastViewModel
 
         @State private var isHovering = false
+        @State private var dateLabelAdjusted: Bool = false
         
         let highlightColor = Color(red: 27 / 255.0, green: 84 / 255.0, blue: 199 / 255.0)
         let hoverColor = Color.gray.opacity(0.2)
@@ -774,9 +775,8 @@ struct ContentView: View {
         var body: some View {
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
-                    // Left side content, including title, description, and duration
+                    // Left side: Displays the episode's title, description, and duration.
                     VStack(alignment: .leading, spacing: 4) {
-                        Spacer(minLength: 6)
                         Text(episode.title)
                             .fontWeight(.bold)
                             .foregroundColor(.white)
@@ -785,33 +785,34 @@ struct ContentView: View {
                             .font(.caption)
                             .foregroundColor(.white)
                             .lineLimit(2)
-                        Spacer(minLength: 6)
                         Text(parseDuration(duration: episode.duration))
                             .font(.caption)
                             .foregroundColor(.white)
-                            .offset(x: 0, y: -5) // Nudge duration up
+                            .offset(x: durationXOffset(), y: durationYOffset())
                     }
-                    Spacer() // Pushes content to the sides
+                    Spacer()
 
-                    // Right side content, with play button on top and info button centered
-                    VStack {
+                    // Right side content with ZStack to overlay play button
+                    ZStack(alignment: .trailing) {
+                        VStack(alignment: .trailing) {
+                            Spacer()
+                            infoButton
+                                .offset(x: infoButtonXOffset(), y: infoButtonYOffset())
+                            Text(ContentView.formatDate(episode.date))
+                                .font(.caption)
+                                .foregroundColor(.white)
+                                .padding(.top, 10)
+                                .offset(x: dateXOffset(), y: dateYOffset())
+                        }
+                        
+                        // Play button appears at the top when hovering
                         if isHovering {
                             playButton
-                                .offset(x: 20, y: 5) // Nudge play button to the right/down
+                                .offset(x: playButtonXOffset(), y: playButtonYOffset())
+                                .transition(.move(edge: .trailing))
                         }
-                        Spacer() // This will dynamically resize
-
-                        infoButton
-                            .offset(x: 20, y: -5) // Nudge info button to the right/up
-
-                        Spacer() // This will dynamically resize
-
-                        Text(SearchEpisodeRow.formatDate(episode.date)) // Display formatted date
-                            .font(.caption)
-                            .foregroundColor(.white)
-                            .offset(x: 0, y: -5) // Nudge date up
                     }
-                    .padding(.trailing, 0) // Add more padding to push the buttons further to the right
+                    .padding(.trailing, 10)
                 }
                 .padding(.horizontal, 8)
                 .frame(height: 112)
@@ -821,21 +822,69 @@ struct ContentView: View {
                 .onHover { hover in
                     self.isHovering = hover
                 }
+                .onAppear {
+                    self.dateLabelAdjusted = self.isDateLabelAdjusted(dateString: episode.date)
+                }
+                .onChange(of: episode.date) { _, newDate in
+                    self.dateLabelAdjusted = self.isDateLabelAdjusted(dateString: newDate)
+                }
+                .onTapGesture {
+                    self.selectedEpisode = episode
+                    Task {
+                        viewModel.selectEpisode(episode)
+                    }
+                }
             }
         }
 
-        private func parseDuration(duration: String) -> String {
-                let components = duration.components(separatedBy: CharacterSet.decimalDigits.inverted).compactMap { Int($0) }
-                if components.count == 3 {
-                    return String(format: "%d:%02d:%02d", components[0], components[1], components[2])
-                } else if components.count == 2 {
-                    return String(format: "0:%02d:%02d", components[0], components[1])
-                } else if components.count == 1 {
-                    return String(format: "0:00:%02d", components[0])
-                }
-                return "0:00:00" // Default case if parsing fails
+        private func isDateLabelAdjusted(dateString: String) -> Bool {
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
+            if let date = dateFormatter.date(from: dateString) {
+                return ContentView.isDateWithinLastSixDays(date) || Calendar.current.isDateInToday(date)
             }
-        
+            return false
+        }
+
+        // Offset functions for each UI element:
+        private func durationXOffset() -> CGFloat {
+            return dateLabelAdjusted ? 0 : 0
+        }
+        private func durationYOffset() -> CGFloat {
+            return dateLabelAdjusted ? 12 : 12
+        }
+        private func playButtonXOffset() -> CGFloat {
+            return dateLabelAdjusted ? 3 : 3
+            }
+        private func playButtonYOffset() -> CGFloat {
+            return dateLabelAdjusted ? -40 : -40
+            }
+        private func infoButtonXOffset() -> CGFloat {
+            return dateLabelAdjusted ? 2 : 2
+        }
+        private func infoButtonYOffset() -> CGFloat {
+            return dateLabelAdjusted ? -15 : -15
+        }
+        private func dateXOffset() -> CGFloat {
+            return dateLabelAdjusted ? 3 : 3
+        }
+        private func dateYOffset() -> CGFloat {
+            return dateLabelAdjusted ? -5 : -5
+        }
+
+        private func parseDuration(duration: String) -> String {
+            // Correctly using components(separatedBy:) method
+            let components = duration.components(separatedBy: CharacterSet.decimalDigits.inverted).compactMap { Int($0) }
+            if components.count == 3 {
+                return String(format: "%d:%02d:%02d", components[0], components[1], components[2])
+            } else if components.count == 2 {
+                return String(format: "0:%02d:%02d", components[0], components[1])
+            } else if components.count == 1 {
+                return String(format: "0:00:%02d", components[0])
+            }
+            return "0:00:00"  // Default case if parsing fails
+        }
+
         private var playButton: some View {
             Button(action: onPlay) {
                 Image(systemName: "play")
@@ -843,7 +892,7 @@ struct ContentView: View {
                     .scaledToFit()
                     .frame(width: 15, height: 15)
             }
-            .buttonStyle(BorderlessButtonStyle())
+            .buttonStyle(PlainButtonStyle())
         }
 
         private var infoButton: some View {
@@ -856,7 +905,7 @@ struct ContentView: View {
                     .scaledToFit()
                     .frame(width: 15, height: 15)
             }
-            .buttonStyle(BorderlessButtonStyle())
+            .buttonStyle(PlainButtonStyle())
         }
 
         static func formatDate(_ dateString: String) -> String {
@@ -936,6 +985,7 @@ struct ContentView: View {
         }
     }
 
+    // MARK: - Main view EpisodeRowView
     struct EpisodeRowView: View {
         let episode: Episode
         @Binding var selectedEpisode: Episode?
