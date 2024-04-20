@@ -966,7 +966,7 @@ struct ContentView: View {
                         Text(parseDuration(duration: episode.duration))
                             .font(.caption)
                             .foregroundColor(.white)
-                            .offset(x: 0, y: dateLabelAdjusted ? 12 : 0)  // Conditionally adjusts vertical position.
+                            .offset(x: dateLabelAdjusted ? 0 : 0, y: dateLabelAdjusted ? 12 : 20)  // Conditionally adjusts vertical position.
                             // To move the duration text vertically, change the '12' to desired pixel value.
                     }
                     Spacer()  // Separates the left and right sections.
@@ -976,20 +976,20 @@ struct ContentView: View {
                         ZStack {
                             // Base layer: info button and date label.
                             VStack {
-                                infoButton  // Button for more information.
+                                infoButton
+                                    .offset(x: dateLabelAdjusted ? 45 : 45, y: dateLabelAdjusted ? 20 : 20)
                                 Text(ContentView.EpisodeRowView.formatDate(episode.date))
                                     .font(.caption)
                                     .foregroundColor(.white)
                                     .padding(.top, 10)  // Adds space above the date label.
-                                    .offset(x: 0, y: dateLabelAdjusted ? 20 : 0)
-                                    // To move the date text vertically based on condition, change '20' to desired pixel value.
+                                    .offset(x: dateLabelAdjusted ? 38 : 25, y: dateLabelAdjusted ? 28 : 28)
+                                    // To move the date text vertically based on condition, change left side to desired pixel value.
                             }
 
                             // Overlay: Play button that appears when hovering.
                             if isHovering {
                                 playButton
-                                    .position(x: 100, y: 10)  // Play button's position inside the ZStack.
-                                    // To adjust the play button's position, modify 'x' and 'y' values accordingly.
+                                    .position(x: dateLabelAdjusted ? 95 : 95, y: dateLabelAdjusted ? 15 : 15) // The 'x' and 'y' values can be adjusted to better position the play button based on the condition
                             }
                         }
                         .frame(width: 100)  // Width of the interactive area on the right.
