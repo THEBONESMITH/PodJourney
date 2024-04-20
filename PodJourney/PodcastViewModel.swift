@@ -13,9 +13,6 @@ import FeedKit
 import os.log
 import AppKit
 
-// Define a logger for the podcast app
-let logger = Logger(subsystem: "com.yourdomain.PodJourney", category: "Playback")
-
 @MainActor
 @objc protocol AppMediaControlDelegate: AnyObject {
     func mediaPlayerDidChangeState(isPlaying: Bool)
@@ -119,7 +116,7 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
             self.player = AVPlayer()
             setupSearchPublisher()
             setupSearchSubscriber()
-            loadPodcasts()
+            // loadPodcasts()
         self.podcasts = [
             Podcast(id: 1, artistName: "Artist One", trackName: "Podcast One", artworkUrl100: "http://example.com/artwork1.jpg", feedUrl: "http://example.com/feed1.rss"),
             Podcast(id: 2, artistName: "Artist Two", trackName: "Podcast Two", artworkUrl100: "http://example.com/artwork2.jpg", feedUrl: "http://example.com/feed2.rss")
@@ -228,6 +225,7 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         await fetchEpisodes(for: Podcast(id: 0, artistName: "", trackName: "", artworkUrl100: "", feedUrl: url.absoluteString))
     }
     
+    /*
     func loadPodcasts() {
         // Simulate network call without using asyncAfter to avoid potential race conditions
         DispatchQueue.global(qos: .background).async {
@@ -241,6 +239,7 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
             }
         }
     }
+    */
     
     private func setupSearchSubscriber() {
         searchSubject
@@ -304,7 +303,6 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     func updateSearchResults(with podcasts: [Podcast]) {
         DispatchQueue.main.async {
             self.searchResults = podcasts
-            print("Search results updated: \(podcasts)")
         }
     }
     

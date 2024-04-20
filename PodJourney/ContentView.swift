@@ -10,6 +10,9 @@ import SwiftUI
 import AVFoundation
 import Combine
 import os
+import os.log
+
+let logger = Logger(subsystem: "com.yourApp", category: "EpisodeRowView")
 
 // Extension to parse hex colors
 extension Color {
@@ -278,8 +281,6 @@ struct ContentView: View {
         private let footerWidth: CGFloat = 450
         private let footerBackgroundColor = Color(hex: "404040")
         
-        private let logger = Logger(subsystem: "com.yourdomain.yourapp", category: "PodcastFooter")
-        
         var body: some View {
             HStack(alignment: .top, spacing: 0) {
                 // Display chapter art if available, else podcast image
@@ -395,11 +396,9 @@ struct ContentView: View {
                 if textWidth > containerWidth - (imageWidth + additionalSpacing * 2) {
                     textOffset = textWidth
                     animateText = false  // Stop the current animation
-                    logger.log("Preparing to start text animation after delay...")
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                         self.animationKey += 1  // Increment to trigger a new animation
                         self.animateText = true
-                        self.logger.log("Text animation started.")
                     }
                 } else {
                     animateText = false
@@ -952,94 +951,104 @@ struct ContentView: View {
         let hoverColor = Color.gray.opacity(0.2)
 
         var body: some View {
-            VStack(alignment: .leading, spacing: 0) {
-                HStack {
-                    // Left side content, including title, description, and duration
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(episode.title)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
-                            .lineLimit(2)
-                        Text(episode.description)
-                            .font(.caption)
-                            .foregroundColor(.white)
-                            .lineLimit(2)
-                        Text(parseDuration(duration: episode.duration))
-                            .font(.caption)
-                            .foregroundColor(.white)
-                            .offset(x: dateLabelAdjusted ? 50 : 0, y: dateLabelAdjusted ? 20 : 0)  // Apply conditional offset
-                    }
-                    Spacer() // Pushes content to the sides
-
-                    // Right side content with play button, info button, and date label
-                    VStack(alignment: .trailing) {
-                        if isHovering {
-                            playButton
-                                .offset(x: needsXOffsetAdjustmentForPlayButton ? 0 : 0,
-                                        y: needsYOffsetAdjustmentForPlayButton ? 0 : 0)
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(episode.title)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                                .lineLimit(2)
+                            Text(episode.description)
+                                .font(.caption)
+                                .foregroundColor(.white)
+                                .lineLimit(2)
+                            Text(parseDuration(duration: episode.duration))
+                                .font(.caption)
+                                .foregroundColor(.white)
+                                .offset(x: 0, y: dateLabelAdjusted ? 12 : 0)
                         }
-                        infoButton
-                            .offset(x: needsXOffsetAdjustmentForInfoButton ? 0 : 0,
-                                    y: needsYOffsetAdjustmentForInfoButton ? 0 : 0)
-                        
-                        Text(EpisodeRowView.formatDate(episode.date)) // Display formatted date
-                            .font(.caption)
-                            .foregroundColor(.white)
-                            .padding(.top, 10) // Space between info button and date
-                            .offset(x: needsXOffsetAdjustmentForDate ? -30 : 30,
-                                    y: needsYOffsetAdjustmentForDate ? 0 : 0)
-                            .onChange(of: episode.date) { oldDate, newDate in
-                                // Update the state based on whether the date requires special formatting
-                                dateLabelAdjusted = isDateLabelAdjusted(dateString: newDate)
+                        Spacer()
+
+                        VStack(alignment: .trailing) {
+                            if isHovering {
+                                playButton
                             }
-                            .onAppear {
-                                // Set initial state when the view appears
-                                dateLabelAdjusted = isDateLabelAdjusted(dateString: episode.date)
-                            }
-                            .frame(width: 100) // Ensure sufficient space for the right side elements
-                            .padding(.trailing, 10) // Adjusts padding to align content within the container
+                            infoButton
+                            Text(ContentView.EpisodeRowView.formatDate(episode.date))
+                                .font(.caption)
+                                .foregroundColor(.white)
+                                .padding(.top, 10)
+                                .offset(x: 0, y: dateLabelAdjusted ? 20 : 0)
+                        }
+                        .frame(width: 100)
+                        .padding(.trailing, 10)
                     }
-                }
-                .padding(.horizontal, 8)
-                .frame(height: 112)
-                .background(RoundedRectangle(cornerRadius: 8).fill(selectedEpisode?.id == episode.id ? highlightColor : Color.clear))
-                .background(isHovering && selectedEpisode?.id != episode.id ? hoverColor : Color.clear)
-                .cornerRadius(8)
-                .onHover { hover in
-                    self.isHovering = hover
-                }
-                .onTapGesture {
-                    self.selectedEpisode = episode
-                    Task {
-                        viewModel.selectEpisode(episode)
+                    .padding(.horizontal, 8)
+                    .frame(height: 112)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(selectedEpisode?.id == episode.id ? highlightColor : Color.clear))
+                    .background(isHovering && selectedEpisode?.id != episode.id ? hoverColor : Color.clear)
+                    .cornerRadius(8)
+                    .onHover { hover in
+                        self.isHovering = hover
+                    }
+                    .onAppear {
+                        // Initial state set and log when the view appears
+                        dateLabelAdjusted = isDateLabelAdjusted(dateString: episode.date)
+                        logger.log("Initial date label adjustment: \(dateLabelAdjusted)")
+                    }
+                    .onChange(of: episode.date) { _, newDate in
+                        // Log date change and adjustment status
+                        dateLabelAdjusted = isDateLabelAdjusted(dateString: newDate)
+                        logger.log("Date changed to \(newDate), adjusted: \(dateLabelAdjusted)")
+                    }
+                    .onTapGesture {
+                        self.selectedEpisode = episode
+                        Task {
+                            viewModel.selectEpisode(episode)
+                        }
                     }
                 }
             }
-        }
 
-        // Example condition functions for X and Y offset determination
-        var needsXOffsetAdjustmentForDuration: Bool { return true }
-        var needsYOffsetAdjustmentForDuration: Bool { return false }
-        var needsXOffsetAdjustmentForPlayButton: Bool { return true }
-        var needsYOffsetAdjustmentForPlayButton: Bool { return true }
-        var needsXOffsetAdjustmentForInfoButton: Bool { return false }
-        var needsYOffsetAdjustmentForInfoButton: Bool { return true }
-        var needsXOffsetAdjustmentForDate: Bool { return true }
-        var needsYOffsetAdjustmentForDate: Bool { return isDateLabelAdjusted(dateString: episode.date) }
+            func verticalOffsetForDuration(dateString: String) -> CGFloat {
+                // Offset duration label based on whether the date is adjusted to a day or not
+                isDateLabelAdjusted(dateString: dateString) ? 0 : 0
+            }
 
+            func verticalOffsetForDate(dateString: String) -> CGFloat {
+                // Offset date label based on whether it's adjusted to a day or not
+                isDateLabelAdjusted(dateString: dateString) ? 20 : 0
+            }
+
+        // Function to determine if the date is a day or not
         func isDateLabelAdjusted(dateString: String) -> Bool {
-            // Implement logic to determine if the date should be treated as a special case (e.g., 'Today' or a weekday name)
             let dateFormatter = DateFormatter()
-            dateFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
+            dateFormatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"  // Make sure the format matches your input date format
+            dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)  // Ensure the timezone matches if needed
+
             if let date = dateFormatter.date(from: dateString) {
                 let calendar = Calendar.current
-                return calendar.isDateInToday(date) || calendar.isDate(date, equalTo: Date(), toGranularity: .day)
+                let today = Date()
+                let sixDaysAgo = calendar.date(byAdding: .day, value: -6, to: today)!
+
+                let isToday = calendar.isDateInToday(date)
+                let isWithinLastSixDays = (date >= sixDaysAgo && date <= today)
+
+                // Logging to check values
+                logger.log("Checking date: \(dateString), isToday: \(isToday), isWithinLastSixDays: \(isWithinLastSixDays)")
+
+                return isToday || isWithinLastSixDays
             }
+
+            logger.log("Failed to parse date: \(dateString)")
             return false
         }
-        
+
         private func parseDuration(duration: String) -> String {
+            // Separate the duration into components and convert them into integers
             let components = duration.components(separatedBy: CharacterSet.decimalDigits.inverted).compactMap { Int($0) }
+            
+            // Return the formatted time based on the number of components
             if components.count == 3 {
                 return String(format: "%d:%02d:%02d", components[0], components[1], components[2])
             } else if components.count == 2 {
@@ -1047,7 +1056,8 @@ struct ContentView: View {
             } else if components.count == 1 {
                 return String(format: "0:00:%02d", components[0])
             }
-            return "0:00:00" // Default case if parsing fails
+            
+            return "0:00:00" // Default case if the parsing fails
         }
 
         private var playButton: some View {
