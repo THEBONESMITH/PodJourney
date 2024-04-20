@@ -951,64 +951,77 @@ struct ContentView: View {
         let hoverColor = Color.gray.opacity(0.2)
 
         var body: some View {
-                VStack(alignment: .leading, spacing: 0) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(episode.title)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                                .lineLimit(2)
-                            Text(episode.description)
-                                .font(.caption)
-                                .foregroundColor(.white)
-                                .lineLimit(2)
-                            Text(parseDuration(duration: episode.duration))
-                                .font(.caption)
-                                .foregroundColor(.white)
-                                .offset(x: 0, y: dateLabelAdjusted ? 12 : 0)
-                        }
-                        Spacer()
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    // Left side: Displays the episode's title, description, and duration.
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(episode.title)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .lineLimit(2)  // Limits the title to two lines.
+                        Text(episode.description)
+                            .font(.caption)
+                            .foregroundColor(.white)
+                            .lineLimit(2)  // Limits the description to two lines.
+                        Text(parseDuration(duration: episode.duration))
+                            .font(.caption)
+                            .foregroundColor(.white)
+                            .offset(x: 0, y: dateLabelAdjusted ? 12 : 0)  // Conditionally adjusts vertical position.
+                            // To move the duration text vertically, change the '12' to desired pixel value.
+                    }
+                    Spacer()  // Separates the left and right sections.
 
-                        VStack(alignment: .trailing) {
+                    // Right side: Contains interactive elements and the date label.
+                    VStack(alignment: .trailing) {
+                        ZStack {
+                            // Base layer: info button and date label.
+                            VStack {
+                                infoButton  // Button for more information.
+                                Text(ContentView.EpisodeRowView.formatDate(episode.date))
+                                    .font(.caption)
+                                    .foregroundColor(.white)
+                                    .padding(.top, 10)  // Adds space above the date label.
+                                    .offset(x: 0, y: dateLabelAdjusted ? 20 : 0)
+                                    // To move the date text vertically based on condition, change '20' to desired pixel value.
+                            }
+
+                            // Overlay: Play button that appears when hovering.
                             if isHovering {
                                 playButton
+                                    .position(x: 100, y: 10)  // Play button's position inside the ZStack.
+                                    // To adjust the play button's position, modify 'x' and 'y' values accordingly.
                             }
-                            infoButton
-                            Text(ContentView.EpisodeRowView.formatDate(episode.date))
-                                .font(.caption)
-                                .foregroundColor(.white)
-                                .padding(.top, 10)
-                                .offset(x: 0, y: dateLabelAdjusted ? 20 : 0)
                         }
-                        .frame(width: 100)
-                        .padding(.trailing, 10)
+                        .frame(width: 100)  // Width of the interactive area on the right.
+                        .padding(.trailing, 10)  // Right padding inside the HStack.
                     }
-                    .padding(.horizontal, 8)
-                    .frame(height: 112)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(selectedEpisode?.id == episode.id ? highlightColor : Color.clear))
-                    .background(isHovering && selectedEpisode?.id != episode.id ? hoverColor : Color.clear)
-                    .cornerRadius(8)
-                    .onHover { hover in
-                        self.isHovering = hover
-                    }
-                    .onAppear {
-                        // Initial state set and log when the view appears
-                        dateLabelAdjusted = isDateLabelAdjusted(dateString: episode.date)
-                        logger.log("Initial date label adjustment: \(dateLabelAdjusted)")
-                    }
-                    .onChange(of: episode.date) { _, newDate in
-                        // Log date change and adjustment status
-                        dateLabelAdjusted = isDateLabelAdjusted(dateString: newDate)
-                        logger.log("Date changed to \(newDate), adjusted: \(dateLabelAdjusted)")
-                    }
-                    .onTapGesture {
-                        self.selectedEpisode = episode
-                        Task {
-                            viewModel.selectEpisode(episode)
-                        }
+                }
+                .padding(.horizontal, 8)
+                .frame(height: 112)
+                .background(RoundedRectangle(cornerRadius: 8).fill(selectedEpisode?.id == episode.id ? highlightColor : Color.clear))
+                .background(isHovering && selectedEpisode?.id != episode.id ? hoverColor : Color.clear)
+                .cornerRadius(8)
+                .onHover { hover in
+                    self.isHovering = hover  // Handles hover state changes.
+                }
+                .onAppear {
+                    // Initial state set and log when the view appears.
+                    dateLabelAdjusted = isDateLabelAdjusted(dateString: episode.date)
+                    logger.log("Initial date label adjustment: \(dateLabelAdjusted)")
+                }
+                .onChange(of: episode.date) { _, newDate in
+                    // Log date change and adjustment status.
+                    dateLabelAdjusted = isDateLabelAdjusted(dateString: newDate)
+                    logger.log("Date changed to \(newDate), adjusted: \(dateLabelAdjusted)")
+                }
+                .onTapGesture {
+                    self.selectedEpisode = episode
+                    Task {
+                        viewModel.selectEpisode(episode)
                     }
                 }
             }
+        }
 
             func verticalOffsetForDuration(dateString: String) -> CGFloat {
                 // Offset duration label based on whether the date is adjusted to a day or not
