@@ -44,7 +44,8 @@ struct PodcastEpisode: Identifiable {
 struct PodcastView: View {
     var podcast: PodcastEpisode
     @Binding var selectedPodcast: PodcastEpisode?
-    
+    @Binding var showingEpisodeDetail: Bool  // Binding to manage the visibility of the episode detail view
+
     var body: some View {
         HStack {
             VStack(alignment: .leading) {
@@ -58,19 +59,6 @@ struct PodcastView: View {
             }
             
             Spacer()
-            
-            if selectedPodcast?.id == podcast.id {
-                Image(systemName: "play.circle.fill")
-                    .imageScale(.large)
-                    .foregroundColor(.blue)
-                
-                Button(action: {
-                    print("Info for \(podcast.title)")
-                }) {
-                    Image(systemName: "info.circle")
-                        .imageScale(.large)
-                }
-            }
         }
         .padding(.horizontal)
         .background(selectedPodcast?.id == podcast.id ? Color.blue : Color.clear)
@@ -112,54 +100,81 @@ struct ContentView: View {
     
     // Define the body property of a SwiftUI View
     var body: some View {
-            HStack { // Start of the main horizontal layout
-                // Sidebar
-                VStack {
-                    if showingSearch {
-                        Button(action: {
-                            showingSearch.toggle()
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                // Simulated button press effect or other UI-related update
-                            }
-                        }) {
-                            Image(systemName: "chevron.backward")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 30, height: 30)
-                                .padding()
-                                .foregroundColor(.gray)
+        HStack { // Start of the main horizontal layout
+            // Sidebar
+            VStack {
+                if showingSearch {
+                    Button(action: {
+                        showingSearch.toggle()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            // Simulated button press effect or other UI-related update
                         }
-                        .buttonStyle(PlainButtonStyle())
-                    } else {
-                        Button(action: {
-                            showingSearch.toggle()
-                        }) {
-                            Image(systemName: "plus.app")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 50, height: 50)
-                                .padding()
-                                .foregroundColor(.gray)
-                        }
-                        .buttonStyle(PlainButtonStyle())
+                    }) {
+                        Image(systemName: "chevron.backward")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 30, height: 30)
+                            .padding()
+                            .foregroundColor(.gray)
                     }
-                    Spacer()
+                    .buttonStyle(PlainButtonStyle())
+                } else {
+                    Button(action: {
+                        showingSearch.toggle()
+                    }) {
+                        Image(systemName: "plus.app")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 50, height: 50)
+                            .padding()
+                            .foregroundColor(.gray)
+                    }
+                    .buttonStyle(PlainButtonStyle())
                 }
-                .frame(width: 90)
-                .background(Color.gray.opacity(0))
+                Spacer()
+            }
+            .frame(width: 90)
+            .background(Color.gray.opacity(0))
 
-                Divider()
+            Divider()
 
-                // Main Content Area
-                VStack {
-                    HStack {
-                        if !showingSearch {
-                            podcastImageAndTitleView
-                                .frame(width: 300)
-                            
-                            Divider()
-                        }
+            // Main Content Area
+            VStack {
+                HStack {
+                    if !showingSearch {
+                        podcastImageAndTitleView
+                            .frame(width: 300)
                         
+                        Divider()
+                    }
+
+                    if showingEpisodeDetail, let episode = selectedEpisode {
+                        VStack {
+                            // MARK: - Episode Details View with Back Button
+                            VStack(alignment: .leading) {
+                                Button(action: {
+                                    self.showingEpisodeDetail = false
+                                }) {
+                                    HStack {
+                                        Image(systemName: "chevron.backward")
+                                            .resizable()
+                                            .scaledToFit()
+                                            .foregroundColor(.gray)
+                                            .frame(width: 30, height: 30) // Adjust for larger button
+                                            .padding(.top, 25) // Increase the top padding to move the button down
+                                            .padding(.leading)
+                                    }
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                                .padding(.leading, 5) // Adjust padding to position the back button
+                                
+                                EpisodeDetailSubView(episode: episode) // Display episode details
+                                    .padding(.leading)
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        }
+                    } else {
+                        // MARK: - Episodes List View (default state for the main content area)
                         VStack {
                             if showingSearch {
                                 SearchView(showingSearch: $showingSearch, selectedPodcast: $selectedPodcast)
@@ -183,19 +198,17 @@ struct ContentView: View {
                                                 selectedEpisode: $selectedEpisode,
                                                 showingEpisodeDetail: $showingEpisodeDetail,
                                                 onDoubleTap: {
-                                                    // Placeholder action
+                                                    // Handle double-tap action
                                                 },
                                                 onPlay: {
-                                                    // Placeholder action
+                                                    // Handle play action
                                                 },
                                                 viewModel: viewModel
                                             )
                                             
                                             if index < viewModel.episodes.count - 1 {
-                                                VStack {
-                                                    CustomDivider(color: Color.gray.opacity(0.3), thickness: 1)
-                                                }
-                                                .padding(.horizontal, 8)
+                                                CustomDivider(color: Color.gray.opacity(0.3), thickness: 1)
+                                                    .padding(.horizontal, 8)
                                             }
                                         }
                                     }
@@ -211,58 +224,44 @@ struct ContentView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(FocusableView())
                     }
-                    Spacer()
+                }
+                
+                Spacer()
 
-                    PodcastFooter()
-                        .environmentObject(viewModel)
-                        .padding(.horizontal, -266)
-                        .padding(.bottom, -45)
+                // Additional Controls
+                PodcastFooter()
+                    .environmentObject(viewModel)
+                    .padding(.horizontal, -266)
+                    .padding(.bottom, -45)
 
-                    VStack {
-                        HStack {
-                            Spacer(minLength: 45)
-                            
-                            VolumeSlider(volume: $volume, onVolumeChange: { newVolume in
-                                viewModel.adjustVolume(to: Float(newVolume))
-                            })
-                            .frame(width: 100)
-                            .padding(.top, 20)
-                            .offset(x: -10, y: -8)
-                            .onAppear {
-                                viewModel.adjustVolume(to: Float(volume))
-                            }
-                        }
+                VStack {
+                    HStack {
+                        Spacer(minLength: 45)
                         
-                        HStack {
-                            controlButtonsView
-                            
-                            Color.clear.frame(width: 84, height: 20)
-                            
-                            Spacer() // Pushes everything to the left
+                        VolumeSlider(volume: $volume, onVolumeChange: { newVolume in
+                            viewModel.adjustVolume(to: Float(newVolume))
+                        })
+                        .frame(width: 100)
+                        .padding(.top, 20)
+                        .offset(x: -10, y: -8)
+                        .onAppear {
+                            viewModel.adjustVolume(to: Float(volume))
                         }
                     }
-                }
-                .onChange(of: showingSearch) { oldSearch, newSearch in
-                    if newSearch {
-                        // Clear episodes when entering search mode
-                        viewModel.clearEpisodesForSearch()
-                    } else {
-                        // Load default episodes when leaving search mode
-                        Task {
-                            await viewModel.loadDefaultEpisodes()
-                        }
+                    
+                    HStack {
+                        controlButtonsView
+                        
+                        Color.clear.frame(width: 84, height: 20)
+                        
+                        Spacer() // Pushes everything to the left
                     }
                 }
-                .onChange(of: selectedPodcast) { oldPodcast, newPodcast in
-                    guard let podcast = newPodcast else { return }
-                    Task {
-                        await viewModel.fetchEpisodes(for: podcast)
-                    }
-                }
-            .onAppear {
-                Task {
-                    await viewModel.loadInitialEpisodes()
-                }
+            }
+        }
+        .onAppear {
+            Task {
+                await viewModel.loadInitialEpisodes()
             }
         }
     }
@@ -430,32 +429,32 @@ struct ContentView: View {
                     Text(episode.title)
                         .font(.title2)
                     
-                    // Preprocess the episode's description to simplify HTML content
-                    let simplifiedDescription = episode.description.simplifiedHTML()
-                    // Split the simplified description into lines for separate Text views
-                    let lines = simplifiedDescription.split(separator: "\n", omittingEmptySubsequences: false)
+                    let description = episode.description.simplifiedHTML()
+                    let lines = description.split(separator: "\n", omittingEmptySubsequences: false)
 
                     ForEach(lines, id: \.self) { line in
                         Text(String(line))
-                            .padding(.bottom, line.isEmpty ? 12 : 0) // Add extra padding for paragraphs
+                            .padding(.bottom, line.isEmpty ? 12 : 0)
                     }
                     
                     Divider()
 
                     Group {
-                        Link(destination: episode.mediaURL) {
-                            Text(episode.mediaURL.absoluteString)
-                                .foregroundColor(.blue)
-                                .underline()
+                        if let mediaURL = episode.mediaURL {
+                            Link(destination: mediaURL) {
+                                Text(mediaURL.absoluteString)
+                                    .foregroundColor(.blue)
+                                    .underline()
+                            }
+                            .font(.subheadline)
                         }
-                        .font(.subheadline)
                         
-                        // Use the provided date string and format it
                         Text("Published: \(reformatDateString(episode.date))")
                         
                         if let author = episode.author {
                             Text("Author: \(author)")
                         }
+                        
                         if let website = episode.website {
                             Link(destination: website) {
                                 Text(website.absoluteString)
@@ -464,19 +463,22 @@ struct ContentView: View {
                             }
                             .font(.subheadline)
                         }
+                        
                         if let category = episode.category {
                             Text("Category: \(category)")
                         }
+                        
                         if let rating = episode.rating {
                             Text("Rating: \(rating)")
                         }
+                        
                         if let size = episode.size {
                             Text("Size: \(sizeString(size))")
                         }
                     }
                     .font(.subheadline)
                 }
-                .padding()
+                .padding() // Outer padding for the VStack
             }
         }
 
@@ -727,6 +729,7 @@ struct ContentView: View {
     struct EpisodesListView: View {
         @EnvironmentObject var viewModel: PodcastViewModel
         @State private var selectedEpisode: Episode?
+        @State private var showingEpisodeDetail = false
         var episodes: [Episode]
 
         var body: some View {
@@ -897,6 +900,7 @@ struct ContentView: View {
 
         private var infoButton: some View {
             Button(action: {
+                print("Info button pressed for episode: \(episode.title)")
                 self.selectedEpisode = episode
                 self.showingEpisodeDetail = true
             }) {
@@ -1135,6 +1139,7 @@ struct ContentView: View {
 
         private var infoButton: some View {
             Button(action: {
+                print("Info button pressed for episode: \(episode.title)")
                 self.selectedEpisode = episode
                 self.showingEpisodeDetail = true
             }) {

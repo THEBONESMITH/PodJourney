@@ -15,7 +15,7 @@ struct Episode: Identifiable, Hashable {
     var link: String
     var description: String // Plain text description
     var attributedDescription: AttributedString? // Optional attributed string for rich text
-    var mediaURL: URL
+    var mediaURL: URL?
     var date: String
     var author: String?
     var website: URL?

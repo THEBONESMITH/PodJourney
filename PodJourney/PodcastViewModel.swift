@@ -471,7 +471,8 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         }
 
         // Check if the current episode URL matches the selected episode URL
-        if let currentEpisodeURL = player.currentItem?.asset as? AVURLAsset, currentEpisodeURL.url == episode.mediaURL {
+        if let currentEpisodeAsset = player.currentItem?.asset as? AVURLAsset,
+               currentEpisodeAsset.url == episode.mediaURL {
             // The selected episode is already loaded, toggle play/pause based on current state
             if player.rate == 0 {
                 player.play()
@@ -482,21 +483,21 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
                 print("⏸ Playback paused for \(episode.title).")
             }
         } else {
-            // Here, we handle the case where a new episode is selected, and the user hits the pause button.
-            // The expected behavior is to pause the currently playing episode without auto-playing the new one.
-            
-            // First, check if something is currently playing.
-            if player.rate != 0 {
-                // If so, pause the current playback and don't start the new episode.
-                player.pause()
-                isPlaying = false
-                print("⏸ Playback paused for the currently playing episode.")
+            // Handle new episode case and ensure mediaURL is valid
+            if let mediaURL = episode.mediaURL {
+                // Here, we handle the case where a new episode is selected, and the user hits the pause button.
+                if player.rate != 0 {
+                    // Pause the current playback if something is playing
+                    player.pause()
+                    isPlaying = false
+                    print("⏸ Playback paused for the currently playing episode.")
+                } else {
+                    // Prepare the new episode for playback without auto-playing
+                    preparePlayer(with: mediaURL)
+                    print("🔊 Player prepared with \(episode.title).")
+                }
             } else {
-                // If nothing is playing, prepare the new episode for playback (but do not play it automatically).
-                // This allows the user to play the new episode with a subsequent play action.
-                preparePlayer(with: episode.mediaURL)
-                // Note: You might decide not to auto-load the new episode here, based on your app's behavior.
-                // In such a case, simply inform the user that the episode is ready to be played.
+                print("⚠️ Episode \(episode.title) does not have a valid media URL.")
             }
         }
     }
