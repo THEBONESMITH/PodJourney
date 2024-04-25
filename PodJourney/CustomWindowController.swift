@@ -14,4 +14,3 @@ class CustomWindowController: NSWindowController {
         // Customize window, add buttons, etc.
     }
 }
-

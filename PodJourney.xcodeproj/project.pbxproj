@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		E18BA7C62BCD24B200FADC9E /* NewContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E18BA7C52BCD24B200FADC9E /* NewContentView.swift */; };
 		E1D0EDFE2BCD3158003E2224 /* PodcastRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1D0EDFD2BCD3158003E2224 /* PodcastRowView.swift */; };
+		E1F9D5F22BDA5C900034C490 /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F9D5F12BDA5C900034C490 /* SearchView.swift */; };
 		E1FF074E2BB5057A00267738 /* PodJourneyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1FF074D2BB5057A00267738 /* PodJourneyApp.swift */; };
 		E1FF07502BB5057A00267738 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1FF074F2BB5057A00267738 /* ContentView.swift */; };
 		E1FF07522BB5057C00267738 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E1FF07512BB5057C00267738 /* Assets.xcassets */; };
@@ -56,6 +57,7 @@
 /* Begin PBXFileReference section */
 		E18BA7C52BCD24B200FADC9E /* NewContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewContentView.swift; sourceTree = "<group>"; };
 		E1D0EDFD2BCD3158003E2224 /* PodcastRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PodcastRowView.swift; sourceTree = "<group>"; };
+		E1F9D5F12BDA5C900034C490 /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
 		E1FF074A2BB5057A00267738 /* PodJourney.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PodJourney.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E1FF074D2BB5057A00267738 /* PodJourneyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PodJourneyApp.swift; sourceTree = "<group>"; };
 		E1FF074F2BB5057A00267738 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -143,12 +145,12 @@
 				E1FF07812BB506CF00267738 /* Debouncer.swift */,
 				E1FF07912BB507CC00267738 /* EpisodeDetailView.swift */,
 				E1FF07852BB5070E00267738 /* FocusableView.swift */,
-				E1FF07562BB5057C00267738 /* Persistence.swift */,
-				E1FF07892BB5074700267738 /* Podcast.swift */,
 				E1FF078D2BB5078900267738 /* MainViewController.swift */,
 				E1FF079C2BB50BC400267738 /* MediaPlayer.swift */,
 				E1FF077F2BB5069500267738 /* MediaPlayerState.swift */,
 				E18BA7C52BCD24B200FADC9E /* NewContentView.swift */,
+				E1FF07562BB5057C00267738 /* Persistence.swift */,
+				E1FF07892BB5074700267738 /* Podcast.swift */,
 				E1FF07582BB5057C00267738 /* PodJourney.xcdatamodeld */,
 				E1FF075B2BB5057C00267738 /* PodJourney.entitlements */,
 				E1FF074D2BB5057A00267738 /* PodJourneyApp.swift */,
@@ -156,6 +158,7 @@
 				E1FF077D2BB5064E00267738 /* PodcastViewModel.swift */,
 				E1FF07832BB506E800267738 /* ProgressBar.swift */,
 				E1FF078F2BB507AD00267738 /* RSSModels.swift */,
+				E1F9D5F12BDA5C900034C490 /* SearchView.swift */,
 				E1FF078B2BB5075E00267738 /* SimplifiedHoverView.swift */,
 				E1FF07872BB5072700267738 /* VolumeSlider.swift */,
 				E1FF07532BB5057C00267738 /* Preview Content */,
@@ -334,6 +337,7 @@
 				E1FF07502BB5057A00267738 /* ContentView.swift in Sources */,
 				E1FF07982BB5081D00267738 /* CustomWindow.swift in Sources */,
 				E1FF07802BB5069500267738 /* MediaPlayerState.swift in Sources */,
+				E1F9D5F22BDA5C900034C490 /* SearchView.swift in Sources */,
 				E1FF07862BB5070E00267738 /* FocusableView.swift in Sources */,
 				E1FF078A2BB5074700267738 /* Podcast.swift in Sources */,
 				E1FF07942BB507E900267738 /* ControlIcons.swift in Sources */,

@@ -225,22 +225,6 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
         await fetchEpisodes(for: Podcast(id: 0, artistName: "", trackName: "", artworkUrl100: "", feedUrl: url.absoluteString))
     }
     
-    /*
-    func loadPodcasts() {
-        // Simulate network call without using asyncAfter to avoid potential race conditions
-        DispatchQueue.global(qos: .background).async {
-            let fetchedPodcasts = [
-                Podcast(id: 1, artistName: "Artist One", trackName: "Podcast One", artworkUrl100: "http://example.com/artwork1.jpg", feedUrl: "http://example.com/feed1.rss"),
-                Podcast(id: 2, artistName: "Artist Two", trackName: "Podcast Two", artworkUrl100: "http://example.com/artwork2.jpg", feedUrl: "http://example.com/feed2.rss")
-            ]
-            DispatchQueue.main.async {
-                self.podcasts = fetchedPodcasts
-                print("Podcasts loaded: \(self.podcasts.count)")
-            }
-        }
-    }
-    */
-    
     private func setupSearchSubscriber() {
         searchSubject
             .debounce(for: .milliseconds(500), scheduler: DispatchQueue.main)
@@ -606,6 +590,7 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
                     // Extract the RSSFeed from the Feed enum using pattern matching.
                     if let rssFeed = feed.rssFeed {
                         let episodes = self?.parseEpisodes(from: rssFeed, using: dateFormatter) ?? []
+                        print("Fetched episodes count: \(episodes.count)")
                         DispatchQueue.main.async {
                             // Make sure you're updating the episodes and podcast details on the main thread because they're @Published properties.
                             self?.episodes = episodes
@@ -730,39 +715,6 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
             self.uiPlaybackProgress = 0.0
         }
     }
-    
-    /*
-    func mediaPlayerDidStartPlayback() {
-        print("MediaPlayerDidStartPlayback delegate method called.")
-
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            
-            self.resetPlaybackProgress()
-            print("Playback progress reset.")
-
-            // Ensure that the AVPlayerItem is ready to play
-            guard self.player.currentItem?.status == .readyToPlay else {
-                print("Attempted to start playback but AVPlayerItem is not ready.")
-                return
-            }
-
-            // Ensure that this method does not proceed unless the player is in a state expected to start playback
-            if self.player.rate == 0 { // Check if the player is not already playing
-                // Call to reset the playback progress bar to its initial state.
-                
-                // Start playback
-                self.player.play()
-                print("Playback has started for new episode.")
-
-                // Initialize the time updates for the UI, ensuring that we only update time when playback is active
-                self.startPlaybackUpdates()
-            } else {
-                print("Player is already playing.")
-            }
-        }
-    }
-    */
     
     func userDidStartInteracting() {
         isUserInteracting = true
