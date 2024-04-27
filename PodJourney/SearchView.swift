@@ -11,59 +11,92 @@ import SwiftUI
 struct SearchView: View {
     @Binding var showingSearch: Bool
     @Binding var selectedPodcast: Podcast?
+    @Binding var selectedEpisode: Episode?
+    @Binding var episodeDetailVisible: Bool
     @EnvironmentObject var viewModel: PodcastViewModel
-    
+
     var resultsList: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 0) {  // Aligning content to the leading edge
+            VStack(alignment: .leading) {
                 ForEach(viewModel.searchResults, id: \.id) { podcast in
-                    PodcastRow(podcast: podcast, selectedPodcast: $selectedPodcast, viewModel: viewModel)
-                        .padding(.vertical, 4)
-                        .onTapGesture {
-                            self.selectedPodcast = podcast
-                            Task {
-                                await viewModel.fetchEpisodes(for: podcast)
-                            }
+                    PodcastRow(
+                        podcast: podcast,
+                        selectedPodcast: $selectedPodcast,
+                        viewModel: viewModel
+                    )
+                    .padding(.vertical, 4)
+                    .onTapGesture {
+                        self.selectedPodcast = podcast
+                        Task {
+                            await viewModel.fetchEpisodes(for: podcast)
                         }
-                        .background(selectedPodcast?.id == podcast.id ? Color.gray.opacity(0.2) : Color.clear)
+                    }
+                    .background(selectedPodcast?.id == podcast.id ? Color.gray.opacity(0.2) : Color.clear)
                 }
             }
-            .padding(.horizontal)  // Adding horizontal padding for better alignment
+            .padding(.horizontal)
         }
     }
-    
+
     var body: some View {
-        HStack(alignment: .top) { // Aligning content to the top
-            VStack(alignment: .leading) { // Aligning content to the leading edge
+        HStack {
+            VStack(alignment: .leading) {
                 TextField("Search...", text: $viewModel.searchText)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .frame(width: 300) // Set the width of the search field
+                    .frame(width: 300)
                     .onChange(of: viewModel.searchText) { _, newValue in
                         viewModel.searchSubject.send(newValue)
                     }
-                
+
                 if viewModel.isSearching {
                     ProgressView("Searching...")
                 } else {
-                    resultsList
+                    resultsList // Ensure a valid view is returned
                 }
             }
-            .padding(.leading) // Ensure everything is aligned to the left
+            .padding(.leading)
 
-            Spacer() // This pushes all content to the left
-            
-            // Right side of the HStack, displaying episodes or details
+            Spacer()
+
             if let selectedPod = selectedPodcast {
-                EpisodesListView(episodes: viewModel.searchEpisodes)
-                    .frame(maxWidth: .infinity)
-                    .onAppear {
-                        Task {
-                            await viewModel.fetchEpisodes(for: selectedPod)
-                        }
+                VStack {
+                    if episodeDetailVisible, let selectedEpisode = selectedEpisode {
+                        CustomEpisodeDetailSubView(episode: selectedEpisode) // Ensure this is a valid view
+                    } else {
+                        EpisodesListView(episodes: viewModel.searchEpisodes) // Default to this view
+                            .frame(maxWidth: .infinity)
+                            .onAppear {
+                                Task {
+                                    await viewModel.fetchEpisodes(for: selectedPod)
+                                }
+                            }
                     }
+                }
+            } else {
+                Text("No podcast selected.") // Ensure fallback view for other branches
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading) // Maximize width and align content to the left
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+}
+    
+    struct CustomEpisodeDetailSubView: View {
+        let episode: Episode
+
+        var body: some View {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Custom Episode Detail for: \(episode.title)") // Customise as needed
+                        .font(.title2)
+                    
+                    Text("Description: \(episode.description.simplifiedHTML())")
+                        .padding(.bottom)
+                    
+                    // Add more custom elements or data here, based on your requirements
+                }
+                .padding()
+            }
+        }
     }
     
     struct PodcastRow: View {
@@ -121,7 +154,6 @@ struct SearchView: View {
             }
         }
     }
-}
 
 // MARK: - Episodes list in search view
 struct EpisodesListView: View {
@@ -169,6 +201,7 @@ struct SearchEpisodeRow: View {
 
     @State private var isHovering = false
     @State private var dateLabelAdjusted: Bool = false
+    @State private var episodeDetailVisible = false
     
     let highlightColor = Color(red: 27 / 255.0, green: 84 / 255.0, blue: 199 / 255.0)
     let hoverColor = Color.gray.opacity(0.2)
@@ -300,14 +333,16 @@ struct SearchEpisodeRow: View {
         Button(action: {
             print("Info button pressed for episode: \(episode.title)")
             self.selectedEpisode = episode
-            self.showingEpisodeDetail = true
+            self.episodeDetailVisible = true
+            print("episodeDetailVisible set to: \(self.episodeDetailVisible)") // Additional print statement
         }) {
             Image(systemName: "info.circle")
                 .resizable()
                 .scaledToFit()
                 .frame(width: 15, height: 15)
+                .foregroundColor(.primary) // Ensure correct foreground colour
         }
-        .buttonStyle(PlainButtonStyle())
+        .buttonStyle(PlainButtonStyle()) // Prevents visual change on click
     }
 
     static func formatDate(_ dateString: String) -> String {

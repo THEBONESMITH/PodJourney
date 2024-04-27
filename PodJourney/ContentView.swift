@@ -89,6 +89,7 @@ struct ContentView: View {
     @ObservedObject var mediaPlayer = MediaPlayer()
     @State private var showingSearch = false
     @State private var showingEpisodeDetail = false
+    @State private var episodeDetailVisibleInSearch = false
     @State private var selectedEpisode: Episode? // Holds the selected episode for details
     @State private var selectedPodcast: Podcast?
     private let seekPublisher = PassthroughSubject<Double, Never>()
@@ -177,7 +178,12 @@ struct ContentView: View {
                         // MARK: - Episodes List View (default state for the main content area)
                         VStack {
                             if showingSearch {
-                                SearchView(showingSearch: $showingSearch, selectedPodcast: $selectedPodcast)
+                                SearchView(
+                                    showingSearch: $showingSearch,
+                                    selectedPodcast: $selectedPodcast,
+                                    selectedEpisode: $selectedEpisode,
+                                    episodeDetailVisible: $episodeDetailVisibleInSearch // Passing the new flag to SearchView
+                                )
                                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                                     .onAppear {
                                         Task {
