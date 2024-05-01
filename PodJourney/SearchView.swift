@@ -7,39 +7,32 @@
 
 import Foundation
 import SwiftUI
+import Combine
+
+class RefreshTrigger: ObservableObject {
+    @Published var needsRefresh: Bool = false // Correct initialization
+}
 
 struct SearchView: View {
+    @StateObject var refreshTrigger = RefreshTrigger()
     @Binding var showingSearch: Bool
     @Binding var selectedPodcast: Podcast?
     @Binding var selectedEpisode: Episode?
     @Binding var episodeDetailVisible: Bool
     @EnvironmentObject var viewModel: PodcastViewModel
-
-    var resultsList: some View {
-        ScrollView {
-            VStack(alignment: .leading) {
-                ForEach(viewModel.searchResults, id: \.id) { podcast in
-                    PodcastRow(
-                        podcast: podcast,
-                        selectedPodcast: $selectedPodcast,
-                        viewModel: viewModel
-                    )
-                    .padding(.vertical, 4)
-                    .onTapGesture {
-                        self.selectedPodcast = podcast
-                        Task {
-                            await viewModel.fetchEpisodes(for: podcast)
-                        }
-                    }
-                    .background(selectedPodcast?.id == podcast.id ? Color.gray.opacity(0.2) : Color.clear)
-                }
-            }
-            .padding(.horizontal)
-        }
-    }
+    @State private var refreshFlag: Bool = false
+    @State private var episodeDetailVisibleInSearch: Bool = false
 
     var body: some View {
-        HStack {
+            HStack {
+                searchPanel
+                Spacer()
+                contentPanel
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+
+        private var searchPanel: some View {
             VStack(alignment: .leading) {
                 TextField("Search...", text: $viewModel.searchText)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -51,19 +44,36 @@ struct SearchView: View {
                 if viewModel.isSearching {
                     ProgressView("Searching...")
                 } else {
-                    resultsList // Ensure a valid view is returned
+                    resultsList
+                }
+
+                if refreshTrigger.needsRefresh {
+                    EmptyView()
+                }
+
+                Button(action: {
+                    refreshFlag.toggle()
+                    print("Refreshed view")
+                }) {
+                    Text("Force Refresh")
                 }
             }
             .padding(.leading)
+        }
 
-            Spacer()
-
+    private var contentPanel: some View {
+        Group {
             if let selectedPod = selectedPodcast {
                 VStack {
+                    // Debugging text to show state directly in the UI
+                    Text("Details Visible: \(episodeDetailVisible.description)")
+
                     if episodeDetailVisible, let selectedEpisode = selectedEpisode {
-                        CustomEpisodeDetailSubView(episode: selectedEpisode) // Ensure this is a valid view
+                        Text("Now showing details for: \(selectedEpisode.title)")
+                        CustomEpisodeDetailSubView(episode: selectedEpisode)
                     } else {
-                        EpisodesListView(episodes: viewModel.searchEpisodes) // Default to this view
+                        Text("Details not visible. Selected Episode is nil or not set.")
+                        EpisodesListView(episodes: viewModel.searchEpisodes)
                             .frame(maxWidth: .infinity)
                             .onAppear {
                                 Task {
@@ -73,13 +83,35 @@ struct SearchView: View {
                     }
                 }
             } else {
-                Text("No podcast selected.") // Ensure fallback view for other branches
+                Text("No podcast selected.")
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
-}
-    
+
+        private var resultsList: some View {
+            ScrollView {
+                VStack(alignment: .leading) {
+                    ForEach(viewModel.searchResults, id: \.id) { podcast in
+                        PodcastRow(
+                            podcast: podcast,
+                            selectedPodcast: $selectedPodcast,
+                            viewModel: viewModel
+                        )
+                        .padding(.vertical, 4)
+                        .onTapGesture {
+                            self.selectedPodcast = podcast
+                            Task {
+                                await viewModel.fetchEpisodes(for: podcast)
+                            }
+                        }
+                        .background(selectedPodcast?.id == podcast.id ? Color.gray.opacity(0.2) : Color.clear)
+                    }
+                }
+                .padding(.horizontal)
+            }
+        }
+    }
+
     struct CustomEpisodeDetailSubView: View {
         let episode: Episode
 
@@ -331,18 +363,19 @@ struct SearchEpisodeRow: View {
 
     private var infoButton: some View {
         Button(action: {
-            print("Info button pressed for episode: \(episode.title)")
-            self.selectedEpisode = episode
-            self.episodeDetailVisible = true
-            print("episodeDetailVisible set to: \(self.episodeDetailVisible)") // Additional print statement
+            Task { @MainActor in
+                print("Setting episode detail visible to true")
+                viewModel.episodeDetailVisible = true
+                selectedEpisode = episode
+            }
         }) {
             Image(systemName: "info.circle")
                 .resizable()
                 .scaledToFit()
                 .frame(width: 15, height: 15)
-                .foregroundColor(.primary) // Ensure correct foreground colour
+                .foregroundColor(.primary)
         }
-        .buttonStyle(PlainButtonStyle()) // Prevents visual change on click
+        .buttonStyle(PlainButtonStyle())
     }
 
     static func formatDate(_ dateString: String) -> String {

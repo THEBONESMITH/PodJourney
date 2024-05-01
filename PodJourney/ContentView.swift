@@ -92,6 +92,7 @@ struct ContentView: View {
     @State private var episodeDetailVisibleInSearch = false
     @State private var selectedEpisode: Episode? // Holds the selected episode for details
     @State private var selectedPodcast: Podcast?
+    @State private var episodeDetailVisible: Bool = false
     private let seekPublisher = PassthroughSubject<Double, Never>()
     private var cancellables: Set<AnyCancellable> = []
     var onSeekEnd: ((Double) -> Void)? = nil
@@ -99,7 +100,6 @@ struct ContentView: View {
     
     let customBlue = Color(red: 25 / 255.0, green: 79 / 255.0, blue: 189 / 255.0)
     
-    // Define the body property of a SwiftUI View
     var body: some View {
         HStack { // Start of the main horizontal layout
             // Sidebar
@@ -182,9 +182,9 @@ struct ContentView: View {
                                     showingSearch: $showingSearch,
                                     selectedPodcast: $selectedPodcast,
                                     selectedEpisode: $selectedEpisode,
-                                    episodeDetailVisible: $episodeDetailVisibleInSearch // Passing the new flag to SearchView
+                                    episodeDetailVisible: $episodeDetailVisible // Ensure this binding is passed correctly
                                 )
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
                                     .onAppear {
                                         Task {
                                             viewModel.clearEpisodes()

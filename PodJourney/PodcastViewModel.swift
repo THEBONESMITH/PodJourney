@@ -77,6 +77,7 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     @Published var searchText = ""
     @Published var podcasts: [Podcast] = []
     @Published var selectedPodcast: Podcast?
+    @Published var episodeDetailVisible: Bool = false
     private var subscriptions = Set<AnyCancellable>()
     private var playbackTimeObserverToken: AVPlayerItem?
     private let episodeSelectionSubject = PassthroughSubject<Episode, Never>()
