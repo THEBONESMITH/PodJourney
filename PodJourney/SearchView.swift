@@ -65,7 +65,6 @@ struct SearchView: View {
         Group {
             if let selectedPod = selectedPodcast {
                 VStack {
-                    // Debugging text to show state directly in the UI
                     Text("Details Visible: \(episodeDetailVisible.description)")
 
                     if episodeDetailVisible, let selectedEpisode = selectedEpisode {
@@ -73,7 +72,7 @@ struct SearchView: View {
                         CustomEpisodeDetailSubView(episode: selectedEpisode)
                     } else {
                         Text("Details not visible. Selected Episode is nil or not set.")
-                        EpisodesListView(episodes: viewModel.searchEpisodes)
+                        EpisodesListView(episodeDetailVisible: $episodeDetailVisible, episodes: viewModel.searchEpisodes)
                             .frame(maxWidth: .infinity)
                             .onAppear {
                                 Task {
@@ -86,6 +85,7 @@ struct SearchView: View {
                 Text("No podcast selected.")
             }
         }
+        .id(episodeDetailVisible)  // Add this line right here
     }
 
         private var resultsList: some View {
@@ -112,24 +112,20 @@ struct SearchView: View {
         }
     }
 
-    struct CustomEpisodeDetailSubView: View {
-        let episode: Episode
+struct CustomEpisodeDetailSubView: View {
+    let episode: Episode
 
-        var body: some View {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Custom Episode Detail for: \(episode.title)") // Customise as needed
-                        .font(.title2)
-                    
-                    Text("Description: \(episode.description.simplifiedHTML())")
-                        .padding(.bottom)
-                    
-                    // Add more custom elements or data here, based on your requirements
-                }
-                .padding()
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Episode title: \(episode.title)").font(.title2)
+                Text("Description: \(episode.description)")
+                // Add other episode details here
             }
+            .padding()
         }
     }
+}
     
     struct PodcastRow: View {
         let podcast: Podcast
@@ -190,6 +186,7 @@ struct SearchView: View {
 // MARK: - Episodes list in search view
 struct EpisodesListView: View {
     @EnvironmentObject var viewModel: PodcastViewModel
+    @Binding var episodeDetailVisible: Bool
     @State private var selectedEpisode: Episode?
     @State private var showingEpisodeDetail = false
     var episodes: [Episode]
@@ -198,9 +195,17 @@ struct EpisodesListView: View {
         ScrollView {
             LazyVStack(spacing: 0) {
                 ForEach(viewModel.episodes.indices, id: \.self) { index in
-                    SearchEpisodeRow(episode: viewModel.episodes[index], selectedEpisode: $selectedEpisode, showingEpisodeDetail: .constant(false), onDoubleTap: {}, onPlay: {
-                        // Add your play action here
-                    }, viewModel: viewModel)
+                    SearchEpisodeRow(
+                        episode: viewModel.episodes[index],
+                        selectedEpisode: $selectedEpisode,
+                        showingEpisodeDetail: $episodeDetailVisible,  // Now correctly bound
+                        onDoubleTap: {},
+                        onPlay: {
+                            // Define play action here
+                        },
+                        viewModel: viewModel
+                    )
+
                     .onTapGesture {
                         self.selectedEpisode = viewModel.episodes[index]
                     }
@@ -363,11 +368,12 @@ struct SearchEpisodeRow: View {
 
     private var infoButton: some View {
         Button(action: {
-            Task { @MainActor in
-                print("Setting episode detail visible to true")
-                viewModel.episodeDetailVisible = true
+            // Directly updating the state linked with the main view.
+            withAnimation {
+                showingEpisodeDetail = true
                 selectedEpisode = episode
             }
+            print("Episode details should now be visible.")
         }) {
             Image(systemName: "info.circle")
                 .resizable()
