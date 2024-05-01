@@ -50,13 +50,6 @@ struct SearchView: View {
                 if refreshTrigger.needsRefresh {
                     EmptyView()
                 }
-
-                Button(action: {
-                    refreshFlag.toggle()
-                    print("Refreshed view")
-                }) {
-                    Text("Force Refresh")
-                }
             }
             .padding(.leading)
         }
@@ -65,13 +58,9 @@ struct SearchView: View {
         Group {
             if let selectedPod = selectedPodcast {
                 VStack {
-                    Text("Details Visible: \(episodeDetailVisible.description)")
-
                     if episodeDetailVisible, let selectedEpisode = selectedEpisode {
-                        Text("Now showing details for: \(selectedEpisode.title)")
-                        CustomEpisodeDetailSubView(episode: selectedEpisode)
+                        CustomEpisodeDetailSubView(episode: selectedEpisode, episodeDetailVisible: $episodeDetailVisible)
                     } else {
-                        Text("Details not visible. Selected Episode is nil or not set.")
                         // Updated call to EpisodesListView
                         EpisodesListView(episodeDetailVisible: $episodeDetailVisible, selectedEpisode: $selectedEpisode, episodes: viewModel.searchEpisodes)
                             .frame(maxWidth: .infinity)
@@ -114,17 +103,25 @@ struct SearchView: View {
 
 struct CustomEpisodeDetailSubView: View {
     let episode: Episode
+    @Binding var episodeDetailVisible: Bool // Pass this as a Binding
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 8) {
+                Button("Back") {
+                    episodeDetailVisible = false // This hides the detail view
+                }
+                .padding() // Add padding for better touch area
+                .background(Color.blue) // Optional: add some color to make it visible
+                .foregroundColor(.white) // Text color
+                .cornerRadius(5) // Round the corners
+
                 Text("Episode title: \(episode.title)").font(.title2)
                 Text("Description: \(episode.description)")
-                // Add more details or views here
+                // More details can be added here
             }
             .padding()
         }
-        .id(episode)  // Force refresh when episode changes
     }
 }
     
@@ -208,7 +205,6 @@ struct EpisodesListView: View {
 
                     .onTapGesture {
                         self.selectedEpisode = viewModel.episodes[index]
-                        print("Selected Episode: \(selectedEpisode?.title ?? "None")")
                     }
 
                     if index < viewModel.episodes.count - 1 {
@@ -374,7 +370,6 @@ struct SearchEpisodeRow: View {
                 showingEpisodeDetail = true
                 selectedEpisode = episode
             }
-            print("Episode details should now be visible.")
         }) {
             Image(systemName: "info.circle")
                 .resizable()
