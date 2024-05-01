@@ -72,7 +72,8 @@ struct SearchView: View {
                         CustomEpisodeDetailSubView(episode: selectedEpisode)
                     } else {
                         Text("Details not visible. Selected Episode is nil or not set.")
-                        EpisodesListView(episodeDetailVisible: $episodeDetailVisible, episodes: viewModel.searchEpisodes)
+                        // Updated call to EpisodesListView
+                        EpisodesListView(episodeDetailVisible: $episodeDetailVisible, selectedEpisode: $selectedEpisode, episodes: viewModel.searchEpisodes)
                             .frame(maxWidth: .infinity)
                             .onAppear {
                                 Task {
@@ -85,7 +86,6 @@ struct SearchView: View {
                 Text("No podcast selected.")
             }
         }
-        .id(episodeDetailVisible)  // Add this line right here
     }
 
         private var resultsList: some View {
@@ -120,10 +120,11 @@ struct CustomEpisodeDetailSubView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Episode title: \(episode.title)").font(.title2)
                 Text("Description: \(episode.description)")
-                // Add other episode details here
+                // Add more details or views here
             }
             .padding()
         }
+        .id(episode)  // Force refresh when episode changes
     }
 }
     
@@ -187,8 +188,7 @@ struct CustomEpisodeDetailSubView: View {
 struct EpisodesListView: View {
     @EnvironmentObject var viewModel: PodcastViewModel
     @Binding var episodeDetailVisible: Bool
-    @State private var selectedEpisode: Episode?
-    @State private var showingEpisodeDetail = false
+    @Binding var selectedEpisode: Episode?
     var episodes: [Episode]
 
     var body: some View {
@@ -208,6 +208,7 @@ struct EpisodesListView: View {
 
                     .onTapGesture {
                         self.selectedEpisode = viewModel.episodes[index]
+                        print("Selected Episode: \(selectedEpisode?.title ?? "None")")
                     }
 
                     if index < viewModel.episodes.count - 1 {
