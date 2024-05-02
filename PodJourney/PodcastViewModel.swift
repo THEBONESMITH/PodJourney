@@ -133,6 +133,7 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     
     // Method to fetch episodes for a selected podcast in search results
     func searchFetchEpisodes(for podcast: Podcast) async {
+        print("Fetching episodes for: \(podcast.trackName)")
         guard let url = URL(string: podcast.feedUrl) else {
             print("Invalid feed URL for podcast: \(podcast.trackName)")
             return
@@ -591,7 +592,6 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
                     // Extract the RSSFeed from the Feed enum using pattern matching.
                     if let rssFeed = feed.rssFeed {
                         let episodes = self?.parseEpisodes(from: rssFeed, using: dateFormatter) ?? []
-                        print("Fetched episodes count: \(episodes.count)")
                         DispatchQueue.main.async {
                             // Make sure you're updating the episodes and podcast details on the main thread because they're @Published properties.
                             self?.episodes = episodes

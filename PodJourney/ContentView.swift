@@ -182,19 +182,25 @@ struct ContentView: View {
                                     showingSearch: $showingSearch,
                                     selectedPodcast: $selectedPodcast,
                                     selectedEpisode: $selectedEpisode,
-                                    episodeDetailVisible: $episodeDetailVisible // Ensure this binding is passed correctly
+                                    episodeDetailVisible: $episodeDetailVisible
                                 )
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                    .onAppear {
-                                        Task {
-                                            viewModel.clearEpisodes()
+                                .onAppear {
+                                    print("Search view appeared")
+                                    Task {
+                                        if let podcast = selectedPodcast {
+                                            await viewModel.searchFetchEpisodes(for: podcast)
                                         }
                                     }
-                                    .onDisappear {
-                                        Task {
-                                            await viewModel.loadDefaultEpisodes()
+                                }
+                                .onDisappear {
+                                    print("Search view disappeared")
+                                    Task {
+                                        await MainActor.run {
+                                            viewModel.searchEpisodes = []
                                         }
                                     }
+                                }
                             } else {
                                 ScrollView {
                                     LazyVStack(spacing: 0) {

@@ -71,9 +71,7 @@ struct SearchView: View {
                             }
                     }
                 }
-            } else {
-                Text("No podcast selected.")
-            }
+            } 
         }
     }
 
