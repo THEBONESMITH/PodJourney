@@ -60,7 +60,10 @@ struct PodcastRowView: View {
             .cornerRadius(8)
             .onTapGesture {
                 self.selectedPodcast = podcast
-                viewModel.loadEpisodes(for: podcast)
+                // Use Task.init to handle asynchronous operations
+                Task {
+                    await viewModel.loadEpisodes(for: podcast, isForSearch: false)
+                }
             }
             .onHover { hover in
                 self.isHovering = hover

@@ -55,28 +55,26 @@ struct Episode: Identifiable, Hashable {
 }
 
 extension Date {
-    func formattedToString() -> String {
+    func formattedToString(format: String) -> String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "dd/MM/yyyy" // Adjust this format as needed.
+        formatter.dateFormat = format // Allow custom format strings
         return formatter.string(from: self)
+    }
+
+    func formattedForDisplay(type: DateFormatType) -> String {
+        switch type {
+        case .simple:
+            return formattedToString(format: "dd/MM/yyyy") // Simple date format
+        case .detailed:
+            return formattedToString(format: "dd MMMM yyyy") // More detailed with month spelled out
+        case .timeIncluded:
+            return formattedToString(format: "dd MMMM yyyy, HH:mm") // Date with time
+        }
     }
 }
 
-extension Date {
-    func formattedDate() -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "dd/MM/yyyy" // Use the format "20/03/2024" as per your requirement.
-        return formatter.string(from: self)
-    }
-}
-
-extension Date {
-    func formattedDateAndTime() -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter.string(from: self)
-    }
+enum DateFormatType {
+    case simple, detailed, timeIncluded
 }
 
 extension Episode {

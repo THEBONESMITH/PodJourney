@@ -78,6 +78,7 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
     @Published var podcasts: [Podcast] = []
     @Published var selectedPodcast: Podcast?
     @Published var episodeDetailVisible: Bool = false
+    @Published var isSearchContext: Bool = false
     private var subscriptions = Set<AnyCancellable>()
     private var playbackTimeObserverToken: AVPlayerItem?
     private let episodeSelectionSubject = PassthroughSubject<Episode, Never>()
@@ -951,52 +952,72 @@ class PodcastViewModel: NSObject, ObservableObject, MediaPlayerDelegate {
 }
 
 extension PodcastViewModel {
-    func loadEpisodes(for podcast: Podcast) {
-            guard let url = URL(string: podcast.feedUrl) else {
-                print("Invalid URL")
-                return
-            }
+    func loadEpisodes(for podcast: Podcast, isForSearch: Bool) async {
+        guard let feedUrl = URL(string: podcast.feedUrl) else {
+            print("Invalid URL for podcast: \(podcast.trackName)")
+            return
+        }
 
-            // Reset cancellation flag at the start
-            isParsingCancelled = false
-
-            let parser = FeedParser(URL: url)
-            parser.parseAsync(queue: DispatchQueue.global(qos: .background)) { [weak self] result in
-                guard let self = self else { return }
-                
-                DispatchQueue.main.async {
-                    if self.isParsingCancelled {
-                        print("Parsing was cancelled or timed out.")
-                        return
-                    }
-
-                    switch result {
-                    case .success(let feed):
-                        self.episodes = feed.rssFeed?.items?.compactMap { item in
-                            Episode(
-                                title: item.title ?? "No title",
-                                link: item.link ?? "",
-                                description: item.description ?? "",
-                                mediaURL: URL(string: item.enclosure?.attributes?.url ?? "https://example.com") ?? URL(string: "https://example.com")!,
-                                date: item.pubDate?.formattedToString() ?? "Unknown date",
-                                author: item.author ?? "Unknown author",
-                                category: item.categories?.first?.value ?? "No category",
-                                rating: "G",
-                                duration: self.formatDuration(from: item.iTunes?.iTunesDuration)
-                            )
-                        } ?? []
-                        print("Episodes loaded: \(self.episodes.count)")
-                    case .failure(let error):
-                        print("Failed to parse feed: \(error.localizedDescription)")
-                    }
-                }
-            }
-
-            // Setup a timeout to set the cancellation flag
-            DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 10) { [weak self] in
-                self?.isParsingCancelled = true
+        let parser = FeedParser(URL: feedUrl)
+        let result = await withCheckedContinuation { continuation in
+            parser.parseAsync(queue: DispatchQueue.global(qos: .userInitiated)) { result in
+                continuation.resume(returning: result)
             }
         }
+
+        await MainActor.run {
+            switch result {
+            case .success(let feed):
+                let episodes = feed.rssFeed?.items?.compactMap { item -> Episode? in
+                    let defaultURL = URL(string: "https://example.com")!
+                    guard let mediaURLString = item.enclosure?.attributes?.url,
+                          let mediaURL = URL(string: mediaURLString) else {
+                        return nil  // Ensure you return nil if URLs are not properly formed
+                    }
+                    return Episode(
+                        title: item.title ?? "No title",
+                        link: item.link ?? "",
+                        description: item.description ?? "No description",
+                        attributedDescription: nil,  // Assuming optional
+                        mediaURL: mediaURL,  // Non-optional as per your struct definition
+                        date: item.pubDate?.formattedToString() ?? "Unknown date",
+                        author: item.author ?? "Unknown",
+                        website: URL(string: item.link ?? ""),
+                        category: item.categories?.first?.value ?? "General",
+                        rating: item.iTunes?.iTunesExplicit ?? "Unknown",
+                        size: nil,  // Assuming size might not be provided
+                        duration: formatDuration(from: item.iTunes?.iTunesDuration),
+                        chapterImageUrl: nil  // Assuming optional
+                    )
+                } ?? []
+
+                if isForSearch {
+                    searchEpisodes = episodes
+                    print("Search episodes updated: \(episodes.count)")
+                } else {
+                    self.episodes = episodes
+                    print("Main view episodes updated: \(episodes.count)")
+                }
+            case .failure(let error):
+                print("Error loading episodes for \(podcast.trackName): \(error)")
+                if isForSearch {
+                    searchEpisodes = []
+                } else {
+                    episodes = []
+                }
+            }
+        }
+    }
+
+    @MainActor
+    func setParsingCancelled() {
+        self.isParsingCancelled = true
+    }
+    
+    @MainActor
+    func markParsingAsCancelled() {
+        self.isParsingCancelled = true
+    }
     
     private func parseFeedData(_ data: Data) -> [Episode] {
         // Assuming parsing logic here, which converts data to episodes
@@ -1015,12 +1036,12 @@ extension PodcastViewModel {
     
     func formatDuration(from timeInterval: TimeInterval?) -> String {
         guard let interval = timeInterval else {
-            return "Unknown duration"
+            return "0:00"  // More typical for durations
         }
         let formatter = DateComponentsFormatter()
-        formatter.unitsStyle = .full
+        formatter.unitsStyle = .short  // Change to .short for brevity, if preferred
         formatter.allowedUnits = [.hour, .minute, .second]
-        return formatter.string(from: interval) ?? "Unknown duration"
+        return formatter.string(from: interval) ?? "0:00"  // Use a standard format for fallback
     }
 
     func adjustVolume(to newVolume: Float) {
@@ -1161,5 +1182,13 @@ extension String {
         }
         
         return attributedString.string
+    }
+}
+
+extension Date {
+    func formattedToString() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: self)
     }
 }

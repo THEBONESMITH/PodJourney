@@ -614,7 +614,9 @@ struct ContentView: View {
                         Text(podcast.trackName)
                             .onTapGesture {
                                 self.selectedPodcast = podcast
-                                viewModel.loadEpisodes(for: podcast)
+                                Task {
+                                    await viewModel.loadEpisodes(for: podcast, isForSearch: true)
+                                }
                             }
                     }
                 }
